@@ -6,14 +6,14 @@ module flow::splay_tree {
     // TODO error codes
     const ENO_MESSAGE: u64 = 0;
 
-    struct Node<V: drop> has drop {
+    struct Node<V: drop> has store, drop {
         key: u64,
         value: V,
         left: u64,
         right: u64
     }
 
-    struct SplayTree<V: drop> has drop {
+    struct SplayTree<V: drop> has store, drop {
         root: u64,
         nodes: vector<Node<V>>,
     }
@@ -52,6 +52,22 @@ module flow::splay_tree {
         assert!(node.right == NULL_PTR, ENO_MESSAGE);
     }
 
+    fun get_left<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
+        vector::borrow(&tree.nodes, idx).left
+    }
+
+    fun get_right<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
+        vector::borrow(&tree.nodes, idx).right
+    }
+
+    fun set_left<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
+        vector::borrow_mut(&mut tree.nodes, idx).left = update_to;
+    }
+
+    fun set_right<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
+        vector::borrow_mut(&mut tree.nodes, idx).right = update_to;
+    }
+
     fun insert_child<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, node: Node<V>) {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
         let node_count = vector::length(&tree.nodes);
@@ -73,7 +89,6 @@ module flow::splay_tree {
                 insert_child(tree, parent_node.right, node);
             }
         }
-
     }
 
     public fun insert<V: drop>(tree: &mut SplayTree<V>, node: Node<V>) {
@@ -84,6 +99,18 @@ module flow::splay_tree {
             let parent_idx = tree.root;
             insert_child(tree, parent_idx, node);
         }
+    }
+
+    fun rotate_left<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, child_idx: u64) {
+        let child_left = get_left(tree, child_idx);
+        set_right(tree, parent_idx, child_left);
+        set_left(tree, child_idx, parent_idx);
+    }
+
+    fun rotate_right<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, child_idx: u64) {
+        let child_right = get_right(tree, child_idx);
+        set_left(tree, parent_idx, child_right);
+        set_right(tree, child_idx, parent_idx);
     }
 
     #[test]
