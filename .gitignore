@@ -1,0 +1,13 @@
+# Move Build Output
+build/
+
+# Move coverage and tracing information
+.trace
+*.mvcov
+
+# Rust specific ignores
+**/target
+**/*.rs.bk
+
+# IntelliJ settings
+.idea/
