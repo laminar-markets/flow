@@ -4,7 +4,7 @@ module flow::splay_tree_v2 {
 
     const ENO_MESSAGE: u64 = 0;
 
-    struct Node<V: drop> has store, drop {
+    struct Node<V: store + drop> has store, drop {
         key: u64,
         value: V,
         parent: option::Option<u64>,
@@ -12,7 +12,7 @@ module flow::splay_tree_v2 {
         right: option::Option<u64>
     }
 
-    struct SplayTree<V: drop> has store, drop {
+    struct SplayTree<V: store + drop> has store, drop {
         nodes: vector<Node<V>>,
     }
 
