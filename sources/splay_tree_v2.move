@@ -106,7 +106,7 @@ module flow::splay_tree_v2 {
     }
 
     public fun get<V: store + drop>(tree: &SplayTree<V>, key: u64): &Node<V> {
-        assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) > 0, ENO_MESSAGE);
         get_internal(&tree.nodes, vector::borrow(&tree.nodes, 0), key)
     }
 
@@ -162,30 +162,6 @@ module flow::splay_tree_v2 {
     }
 
     #[test]
-    fun test_insert_two_same() {
-        let tree = init_tree<u64>();
-        insert(&mut tree, 5, 1);
-        insert(&mut tree, 5, 1);
-
-        let first = vector::borrow(&tree.nodes, 0);
-        let second = vector::borrow(&tree.nodes, 1);
-
-        assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
-        assert!(first.key == 5, ENO_MESSAGE);
-        assert!(first.value == 1, ENO_MESSAGE);
-        assert!(option::is_none(&first.left), ENO_MESSAGE);
-        assert!(option::is_some(&first.right), ENO_MESSAGE);
-        assert!(*option::borrow(&first.right) == 1, ENO_MESSAGE);
-
-        assert!(second.key == 5, ENO_MESSAGE);
-        assert!(second.value == 1, ENO_MESSAGE);
-        assert!(option::is_none(&second.left), ENO_MESSAGE);
-        assert!(option::is_none(&second.right), ENO_MESSAGE);
-        assert!(option::is_some(&second.parent), ENO_MESSAGE);
-        assert!(*option::borrow(&second.parent) == 0, ENO_MESSAGE);
-    }
-
-    #[test]
     fun test_insert_four() {
         let tree = init_tree<u64>();
         insert(&mut tree, 5, 1);
@@ -225,5 +201,28 @@ module flow::splay_tree_v2 {
         assert!(option::is_none(&fourth.right), ENO_MESSAGE);
         assert!(option::is_some(&fourth.parent), ENO_MESSAGE);
         assert!(*option::borrow(&fourth.parent) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_contains_key() {
+        let tree = init_tree<u64>();
+        insert(&mut tree, 5, 1);
+        insert(&mut tree, 3, 2);
+        assert!(contains_key(&tree, 5), ENO_MESSAGE);
+        assert!(contains_key(&tree, 3), ENO_MESSAGE);
+        assert!(!contains_key(&tree, 4), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_get() {
+        let tree = init_tree<u64>();
+        insert(&mut tree, 5, 1);
+        insert(&mut tree, 3, 2);
+        let five = get(&tree, 5);
+        assert!(five.key == 5, ENO_MESSAGE);
+        assert!(five.value == 1, ENO_MESSAGE);
+        let three = get(&tree, 3);
+        assert!(three.key == 3, ENO_MESSAGE);
+        assert!(three.value == 2, ENO_MESSAGE);
     }
 }
