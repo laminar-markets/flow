@@ -84,6 +84,22 @@ module flow::splay_tree {
         vector::borrow(&tree.nodes, idx)
     }
 
+    fun get_node_by_key_from<V: drop>(tree: &SplayTree<V>, parent_idx: u64, key: u64): &Node<V> {
+        assert!(parent_idx != NULL_PTR, ENO_MESSAGE);
+        let parent_node = vector::borrow(&tree.nodes, parent_idx);
+        if (key == parent_node.key) {
+            parent_node
+        } else if (key < parent_node.key) {
+            get_node_by_key_from(tree, parent_node.left, key)
+        } else {
+            get_node_by_key_from(tree, parent_node.right, key)
+        }
+    }
+
+    public fun get_node_by_key<V: drop>(tree: &SplayTree<V>, key: u64): &Node<V> {
+        get_node_by_key_from(tree, get_root(tree), key)
+    }
+
     fun insert_child<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, node: Node<V>) {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
         let node_count = vector::length(&tree.nodes);
@@ -207,6 +223,26 @@ module flow::splay_tree {
         assert!(get_root_node(&tree).key == key0, ENO_MESSAGE);
         assert!(get_left(&tree, tree.root) == NULL_PTR, ENO_MESSAGE);
         assert!(get_right(&tree, tree.root) == key1, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_get_by_key() {
+        let tree = init_tree<u64>();
+
+        let node0 = init_node<u64>(0, 0);
+        let node1 = init_node<u64>(1, 1);
+        let node2 = init_node<u64>(2, 2);
+        let node3 = init_node<u64>(3, 3);
+
+        insert(&mut tree, node1);
+        insert(&mut tree, node0);
+        insert(&mut tree, node3);
+        insert(&mut tree, node2);
+
+        assert!(get_node_by_key(&tree, 0).value == 0, ENO_MESSAGE);
+        assert!(get_node_by_key(&tree, 1).value == 1, ENO_MESSAGE);
+        assert!(get_node_by_key(&tree, 2).value == 2, ENO_MESSAGE);
+        assert!(get_node_by_key(&tree, 3).value == 3, ENO_MESSAGE);
     }
 
     #[test]
