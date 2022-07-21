@@ -52,36 +52,36 @@ module flow::splay_tree {
         assert!(node.right == NULL_PTR, ENO_MESSAGE);
     }
 
-    fun get_node<V: drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
-        vector::borrow(&tree.nodes, idx)
-    }
-
-    fun get_left<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
+    public fun get_left<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
         vector::borrow(&tree.nodes, idx).left
     }
 
-    fun get_right<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
+    public fun get_right<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
         vector::borrow(&tree.nodes, idx).right
     }
 
-    fun set_left<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
+    public fun set_left<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
         vector::borrow_mut(&mut tree.nodes, idx).left = update_to;
     }
 
-    fun set_right<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
+    public fun set_right<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
         vector::borrow_mut(&mut tree.nodes, idx).right = update_to;
     }
 
-    fun get_root<V: drop>(tree: &SplayTree<V>): u64 {
+    public fun get_root<V: drop>(tree: &SplayTree<V>): u64 {
         tree.root
     }
 
-    fun set_root<V: drop>(tree: &mut SplayTree<V>, update_to: u64) {
+    public fun set_root<V: drop>(tree: &mut SplayTree<V>, update_to: u64) {
         tree.root = update_to;
     }
 
-    fun get_root_node<V: drop>(tree: &SplayTree<V>): &Node<V> {
+    public fun get_root_node<V: drop>(tree: &SplayTree<V>): &Node<V> {
         vector::borrow(&tree.nodes, tree.root)
+    }
+
+    public fun get_node_by_index<V: drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
+        vector::borrow(&tree.nodes, idx)
     }
 
     fun insert_child<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, node: Node<V>) {
@@ -116,6 +116,43 @@ module flow::splay_tree {
             insert_child(tree, parent_idx, node);
         }
     }
+    
+    fun insert_child_and_splay_once<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, node: Node<V>) {
+        let parent_node = vector::borrow(&tree.nodes, parent_idx);
+        let node_count = vector::length(&tree.nodes);
+
+        if (node.key < parent_node.key) {
+            if (parent_node.left == NULL_PTR) {
+                vector::push_back(&mut tree.nodes, node);
+                let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
+                parent_node.left = node_count;
+                // one splay step
+                rotate_right(tree, parent_idx, node_count);
+            } else {
+                insert_child(tree, parent_node.left, node);
+            }
+        } else if (node.key > parent_node.key) {
+            if (parent_node.right == NULL_PTR) {
+                vector::push_back(&mut tree.nodes, node);
+                let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
+                parent_node.right = node_count;
+                // one splay step
+                rotate_left(tree, parent_idx, node_count);
+            } else {
+                insert_child(tree, parent_node.right, node);
+            }
+        }
+    }
+    
+    public fun insert_and_splay_once<V: drop>(tree: &mut SplayTree<V>, node: Node<V>) {
+        if (tree.root == NULL_PTR) {
+            vector::push_back(&mut tree.nodes, node);
+            tree.root = 0;
+        } else {
+            let parent_idx = tree.root;
+            insert_child_and_splay_once(tree, parent_idx, node);
+        }
+    }
 
     fun rotate_left<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, child_idx: u64) {
         let child_left = get_left(tree, child_idx);
@@ -136,15 +173,6 @@ module flow::splay_tree {
             set_root(tree, child_idx);
         }
     }
-
-    //    fun splay_step<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, child_idx: u64) {
-    //        let parent_node = vector::borrow(&mut tree.nodes, parent_idx);
-    //        if (parent_node.left == child_idx) {
-    //            rotate_right(tree, parent_idx, child_idx);
-    //        } else if (parent_node.right == child_idx) {
-    //            rotate_left(tree, parent_idx, child_idx);
-    //        }
-    //    }
 
     #[test]
     fun test_add_node() {
@@ -176,9 +204,9 @@ module flow::splay_tree {
         assert!(tree.root == key0, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
 
-        assert!(vector::borrow(&tree.nodes, tree.root).key == key0, ENO_MESSAGE);
-        assert!(vector::borrow(&tree.nodes, tree.root).left == NULL_PTR, ENO_MESSAGE);
-        assert!(vector::borrow(&tree.nodes, tree.root).right == key1, ENO_MESSAGE);
+        assert!(get_root_node(&tree).key == key0, ENO_MESSAGE);
+        assert!(get_left(&tree, tree.root) == NULL_PTR, ENO_MESSAGE);
+        assert!(get_right(&tree, tree.root) == key1, ENO_MESSAGE);
     }
 
     #[test]
@@ -205,13 +233,13 @@ module flow::splay_tree {
         //    2   4
 
         let root_node = get_root_node(&tree);
-        let root_right_node = get_node(&tree, root_node.right);
+        let root_right_node = get_node_by_index(&tree, root_node.right);
 
         assert!(root_node.key == 1, ENO_MESSAGE);
         assert!(root_right_node.key == 3, ENO_MESSAGE);
-        assert!(get_node(&tree, root_node.left).key == 0, ENO_MESSAGE);
-        assert!(get_node(&tree, root_right_node.left).key == 2, ENO_MESSAGE);
-        assert!(get_node(&tree, root_right_node.right).key == 4, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_node.left).key == 0, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_right_node.left).key == 2, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_right_node.right).key == 4, ENO_MESSAGE);
 
         let root_idx = get_root(&tree);
         rotate_left(&mut tree, root_idx, root_node.right);
@@ -224,13 +252,13 @@ module flow::splay_tree {
         //  0   2
 
         let root_node = get_root_node(&tree);
-        let root_left_node = get_node(&tree, root_node.left);
+        let root_left_node = get_node_by_index(&tree, root_node.left);
 
         assert!(root_node.key == 3, ENO_MESSAGE);
         assert!(root_left_node.key == 1, ENO_MESSAGE);
-        assert!(get_node(&tree, root_node.right).key == 4, ENO_MESSAGE);
-        assert!(get_node(&tree, root_left_node.left).key == 0, ENO_MESSAGE);
-        assert!(get_node(&tree, root_left_node.right).key == 2, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_node.right).key == 4, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_left_node.left).key == 0, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_left_node.right).key == 2, ENO_MESSAGE);
     }
 
     #[test]
@@ -257,13 +285,13 @@ module flow::splay_tree {
         //  0   2
 
         let root_node = get_root_node(&tree);
-        let root_left_node = get_node(&tree, root_node.left);
+        let root_left_node = get_node_by_index(&tree, root_node.left);
 
         assert!(root_node.key == 3, ENO_MESSAGE);
         assert!(root_left_node.key == 1, ENO_MESSAGE);
-        assert!(get_node(&tree, root_node.right).key == 4, ENO_MESSAGE);
-        assert!(get_node(&tree, root_left_node.left).key == 0, ENO_MESSAGE);
-        assert!(get_node(&tree, root_left_node.right).key == 2, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_node.right).key == 4, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_left_node.left).key == 0, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_left_node.right).key == 2, ENO_MESSAGE);
 
         let root_idx = get_root(&tree);
         rotate_right(&mut tree, root_idx, root_node.left);
@@ -276,12 +304,12 @@ module flow::splay_tree {
         //    2   4
 
         let root_node = get_root_node(&tree);
-        let root_right_node = get_node(&tree, root_node.right);
+        let root_right_node = get_node_by_index(&tree, root_node.right);
 
         assert!(root_node.key == 1, ENO_MESSAGE);
         assert!(root_right_node.key == 3, ENO_MESSAGE);
-        assert!(get_node(&tree, root_node.left).key == 0, ENO_MESSAGE);
-        assert!(get_node(&tree, root_right_node.left).key == 2, ENO_MESSAGE);
-        assert!(get_node(&tree, root_right_node.right).key == 4, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_node.left).key == 0, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_right_node.left).key == 2, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, root_right_node.right).key == 4, ENO_MESSAGE);
     }
 }
