@@ -1,5 +1,5 @@
 module flow::splay_tree {
-    use Std::Vector;
+    use std::vector;
 
     const NULL_PTR: u64 = 0xffffffffffffffff;
 
@@ -21,7 +21,7 @@ module flow::splay_tree {
     public fun init_tree<V: drop>(): SplayTree<V> {
         SplayTree {
             root: NULL_PTR,
-            nodes: Vector::empty<Node<V>>(),
+            nodes: vector::empty<Node<V>>(),
         }
     }
 
@@ -30,7 +30,7 @@ module flow::splay_tree {
         let tree = init_tree<u64>();
 
         assert!(tree.root == NULL_PTR, ENO_MESSAGE);
-        assert!(Vector::length(&tree.nodes) == 0, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
     }
 
     public fun init_node<V: drop>(key: u64, value: V): Node<V> {
@@ -53,19 +53,19 @@ module flow::splay_tree {
     }
 
     public fun get_left<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
-        Vector::borrow(&tree.nodes, idx).left
+        vector::borrow(&tree.nodes, idx).left
     }
 
     public fun get_right<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
-        Vector::borrow(&tree.nodes, idx).right
+        vector::borrow(&tree.nodes, idx).right
     }
 
     public fun set_left<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
-        Vector::borrow_mut(&mut tree.nodes, idx).left = update_to;
+        vector::borrow_mut(&mut tree.nodes, idx).left = update_to;
     }
 
     public fun set_right<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
-        Vector::borrow_mut(&mut tree.nodes, idx).right = update_to;
+        vector::borrow_mut(&mut tree.nodes, idx).right = update_to;
     }
 
     public fun get_root<V: drop>(tree: &SplayTree<V>): u64 {
@@ -77,16 +77,16 @@ module flow::splay_tree {
     }
 
     public fun get_root_node<V: drop>(tree: &SplayTree<V>): &Node<V> {
-        Vector::borrow(&tree.nodes, tree.root)
+        vector::borrow(&tree.nodes, tree.root)
     }
 
     public fun get_node_by_index<V: drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
-        Vector::borrow(&tree.nodes, idx)
+        vector::borrow(&tree.nodes, idx)
     }
 
     fun get_node_by_key_from<V: drop>(tree: &SplayTree<V>, parent_idx: u64, key: u64): &Node<V> {
         assert!(parent_idx != NULL_PTR, ENO_MESSAGE);
-        let parent_node = Vector::borrow(&tree.nodes, parent_idx);
+        let parent_node = vector::borrow(&tree.nodes, parent_idx);
         if (key == parent_node.key) {
             parent_node
         } else if (key < parent_node.key) {
@@ -101,21 +101,21 @@ module flow::splay_tree {
     }
 
     fun insert_child<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, node: Node<V>) {
-        let parent_node = Vector::borrow(&tree.nodes, parent_idx);
-        let node_count = Vector::length(&tree.nodes);
+        let parent_node = vector::borrow(&tree.nodes, parent_idx);
+        let node_count = vector::length(&tree.nodes);
 
         if (node.key < parent_node.key) {
             if (parent_node.left == NULL_PTR) {
-                Vector::push_back(&mut tree.nodes, node);
-                let parent_node = Vector::borrow_mut(&mut tree.nodes, parent_idx);
+                vector::push_back(&mut tree.nodes, node);
+                let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
                 parent_node.left = node_count;
             } else {
                 insert_child(tree, parent_node.left, node);
             }
         } else if (node.key > parent_node.key) {
             if (parent_node.right == NULL_PTR) {
-                Vector::push_back(&mut tree.nodes, node);
-                let parent_node = Vector::borrow_mut(&mut tree.nodes, parent_idx);
+                vector::push_back(&mut tree.nodes, node);
+                let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
                 parent_node.right = node_count;
             } else {
                 insert_child(tree, parent_node.right, node);
@@ -125,7 +125,7 @@ module flow::splay_tree {
 
     public fun insert<V: drop>(tree: &mut SplayTree<V>, node: Node<V>) {
         if (tree.root == NULL_PTR) {
-            Vector::push_back(&mut tree.nodes, node);
+            vector::push_back(&mut tree.nodes, node);
             tree.root = 0;
         } else {
             let parent_idx = tree.root;
@@ -134,13 +134,13 @@ module flow::splay_tree {
     }
     
     fun insert_child_and_splay_once<V: drop>(tree: &mut SplayTree<V>, parent_idx: u64, node: Node<V>) {
-        let parent_node = Vector::borrow(&tree.nodes, parent_idx);
-        let node_count = Vector::length(&tree.nodes);
+        let parent_node = vector::borrow(&tree.nodes, parent_idx);
+        let node_count = vector::length(&tree.nodes);
 
         if (node.key < parent_node.key) {
             if (parent_node.left == NULL_PTR) {
-                Vector::push_back(&mut tree.nodes, node);
-                let parent_node = Vector::borrow_mut(&mut tree.nodes, parent_idx);
+                vector::push_back(&mut tree.nodes, node);
+                let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
                 parent_node.left = node_count;
                 // one splay step
                 rotate_right(tree, parent_idx, node_count);
@@ -149,8 +149,8 @@ module flow::splay_tree {
             }
         } else if (node.key > parent_node.key) {
             if (parent_node.right == NULL_PTR) {
-                Vector::push_back(&mut tree.nodes, node);
-                let parent_node = Vector::borrow_mut(&mut tree.nodes, parent_idx);
+                vector::push_back(&mut tree.nodes, node);
+                let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
                 parent_node.right = node_count;
                 // one splay step
                 rotate_left(tree, parent_idx, node_count);
@@ -162,7 +162,7 @@ module flow::splay_tree {
     
     public fun insert_and_splay_once<V: drop>(tree: &mut SplayTree<V>, node: Node<V>) {
         if (tree.root == NULL_PTR) {
-            Vector::push_back(&mut tree.nodes, node);
+            vector::push_back(&mut tree.nodes, node);
             tree.root = 0;
         } else {
             let parent_idx = tree.root;
@@ -196,12 +196,12 @@ module flow::splay_tree {
         let node = init_node<u64>(0, 0);
 
         assert!(tree.root == NULL_PTR, ENO_MESSAGE);
-        assert!(Vector::length(&tree.nodes) == 0, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
 
         insert(&mut tree, node);
 
         assert!(tree.root == 0, ENO_MESSAGE);
-        assert!(Vector::length(&tree.nodes) == 1, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 1, ENO_MESSAGE);
     }
 
     #[test]
@@ -218,7 +218,7 @@ module flow::splay_tree {
         insert(&mut tree, node1);
 
         assert!(tree.root == key0, ENO_MESSAGE);
-        assert!(Vector::length(&tree.nodes) == 2, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
 
         assert!(get_root_node(&tree).key == key0, ENO_MESSAGE);
         assert!(get_left(&tree, tree.root) == NULL_PTR, ENO_MESSAGE);
