@@ -69,6 +69,7 @@ module flow::splay_tree_v2 {
 
     fun contains_key_internal<V: store + drop>(nodes: &vector<Node<V>>, current: &Node<V>, key: u64): bool {
         if (current.key == key) {
+            // TODO splay here
             true
         } else if (key < current.key && option::is_some(&current.left)) {
             let left_node = vector::borrow(nodes, *option::borrow(&current.left));
@@ -91,6 +92,7 @@ module flow::splay_tree_v2 {
 
     fun get_internal<V: store + drop>(nodes: &vector<Node<V>>, current: &Node<V>, key: u64): &Node<V> {
         if (current.key == key) {
+            // TODO splay here
             current
         } else if (key < current.key && option::is_some(&current.left)) {
             let left_node = vector::borrow(nodes, *option::borrow(&current.left));
