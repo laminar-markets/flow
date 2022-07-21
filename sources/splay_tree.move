@@ -25,14 +25,6 @@ module flow::splay_tree {
         }
     }
 
-    #[test]
-    fun test_init_tree() {
-        let tree = init_tree<u64>();
-
-        assert!(tree.root == NULL_PTR, ENO_MESSAGE);
-        assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
-    }
-
     public fun init_node<V: drop>(key: u64, value: V): Node<V> {
         Node {
             key,
@@ -42,45 +34,35 @@ module flow::splay_tree {
         }
     }
 
-    #[test]
-    fun test_init_node() {
-        let node = init_node<u64>(0, 0);
-
-        assert!(node.key == 0, ENO_MESSAGE);
-        assert!(node.value == 0, ENO_MESSAGE);
-        assert!(node.left == NULL_PTR, ENO_MESSAGE);
-        assert!(node.right == NULL_PTR, ENO_MESSAGE);
-    }
-
-    public fun get_left<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
+    fun get_left<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
         vector::borrow(&tree.nodes, idx).left
     }
 
-    public fun get_right<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
+    fun get_right<V: drop>(tree: &SplayTree<V>, idx: u64): u64 {
         vector::borrow(&tree.nodes, idx).right
     }
 
-    public fun set_left<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
+    fun set_left<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
         vector::borrow_mut(&mut tree.nodes, idx).left = update_to;
     }
 
-    public fun set_right<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
+    fun set_right<V: drop>(tree: &mut SplayTree<V>, idx: u64, update_to: u64) {
         vector::borrow_mut(&mut tree.nodes, idx).right = update_to;
     }
 
-    public fun get_root<V: drop>(tree: &SplayTree<V>): u64 {
+    fun get_root<V: drop>(tree: &SplayTree<V>): u64 {
         tree.root
     }
 
-    public fun set_root<V: drop>(tree: &mut SplayTree<V>, update_to: u64) {
+    fun set_root<V: drop>(tree: &mut SplayTree<V>, update_to: u64) {
         tree.root = update_to;
     }
 
-    public fun get_root_node<V: drop>(tree: &SplayTree<V>): &Node<V> {
+    fun get_root_node<V: drop>(tree: &SplayTree<V>): &Node<V> {
         vector::borrow(&tree.nodes, tree.root)
     }
 
-    public fun get_node_by_index<V: drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
+    fun get_node_by_index<V: drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
         vector::borrow(&tree.nodes, idx)
     }
 
@@ -96,7 +78,7 @@ module flow::splay_tree {
         }
     }
 
-    public fun get_node_by_key<V: drop>(tree: &SplayTree<V>, key: u64): &Node<V> {
+    fun get_node_by_key<V: drop>(tree: &SplayTree<V>, key: u64): &Node<V> {
         get_node_by_key_from(tree, get_root(tree), key)
     }
 
@@ -188,6 +170,24 @@ module flow::splay_tree {
         if (get_root(tree) == parent_idx) {
             set_root(tree, child_idx);
         }
+    }
+
+    #[test]
+    fun test_init_tree() {
+        let tree = init_tree<u64>();
+
+        assert!(tree.root == NULL_PTR, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_init_node() {
+        let node = init_node<u64>(0, 0);
+
+        assert!(node.key == 0, ENO_MESSAGE);
+        assert!(node.value == 0, ENO_MESSAGE);
+        assert!(node.left == NULL_PTR, ENO_MESSAGE);
+        assert!(node.right == NULL_PTR, ENO_MESSAGE);
     }
 
     #[test]

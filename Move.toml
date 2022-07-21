@@ -1,5 +1,5 @@
 [package]
-name = "flow"
+name = "Flow"
 version = "0.0.0"
 
 [dependencies]
