@@ -509,7 +509,24 @@ module flow::splay_tree {
     }
 
     #[test]
-    fun test_minimum() {
+    fun test_minimum_without_splay() {
+        let tree = init_tree<u64>(false);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        let min = minimum(&tree);
+//        debug::print(&tree.root);
+//        debug::print(&tree.nodes);
+//        debug::print(&min.key);
+        assert!(min.key == 1, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_minimum_with_splay() {
         let tree = init_tree<u64>(true);
 
         insert(&mut tree, 2, 2);
@@ -518,10 +535,10 @@ module flow::splay_tree {
         insert(&mut tree, 5, 5);
         insert(&mut tree, 1, 1);
 
-//        let min = minimum(&tree);
+        let min = minimum(&tree);
         debug::print(&tree.root);
         debug::print(&tree.nodes);
-//        debug::print(&min.key);
-//        assert!(min.key == 0, ENO_MESSAGE);
+        debug::print(&min.key);
+//      assert!(min.key == 1, ENO_MESSAGE);
     }
 }
