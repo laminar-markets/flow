@@ -2,8 +2,6 @@ module flow::splay_tree {
     use std::vector;
     use std::option::{Self, Option};
 
-    const NULL_PTR: u64 = 0xffffffffffffffff;
-
     const ENO_MESSAGE: u64 = 0;
     const EKEY_NOT_FOUND: u64 = 1;
 
@@ -90,7 +88,7 @@ module flow::splay_tree {
             if (option::is_none(&parent_node.left)) {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-                parent_node.left = node_count;
+                parent_node.left = option::some(node_count);
             } else {
                 insert_internal(tree, *option::borrow(&parent_node.left), node);
             }
@@ -98,7 +96,7 @@ module flow::splay_tree {
             if (option::is_none(&parent_node.right)) {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-                parent_node.right = node_count;
+                parent_node.right = option::some(node_count);
             } else {
                 insert_internal(tree, *option::borrow(&parent_node.right), node);
             }
@@ -124,7 +122,7 @@ module flow::splay_tree {
             if (option::is_none(&parent_node.left)) {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-                parent_node.left = node_count;
+                parent_node.left = option::some(node_count);
                 // one splay step
                 rotate_right(tree, parent_idx, node_count);
             } else {
@@ -134,7 +132,7 @@ module flow::splay_tree {
             if (option::is_none(&parent_node.right)) {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-                parent_node.right = node_count;
+                parent_node.right = option::some(node_count);
                 // one splay step
                 rotate_left(tree, parent_idx, node_count);
             } else {
@@ -194,8 +192,8 @@ module flow::splay_tree {
 
         assert!(node.key == 0, ENO_MESSAGE);
         assert!(node.value == 0, ENO_MESSAGE);
-        assert!(node.left == NULL_PTR, ENO_MESSAGE);
-        assert!(node.right == NULL_PTR, ENO_MESSAGE);
+        assert!(option::is_none(&node.left), ENO_MESSAGE);
+        assert!(option::is_none(&node.right), ENO_MESSAGE);
     }
 
     #[test]
@@ -233,8 +231,8 @@ module flow::splay_tree {
 
          assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
          assert!(root_node.key == key0, ENO_MESSAGE);
-         assert!(get_left(&tree, root) == NULL_PTR, ENO_MESSAGE);
-         assert!(get_right(&tree, root) == key1, ENO_MESSAGE);
+         assert!(option::is_none(&get_left(&tree, root)), ENO_MESSAGE);
+         assert!(*option::borrow(&get_right(&tree, root)) == key1, ENO_MESSAGE);
      }
 
      #[test]
@@ -330,7 +328,7 @@ module flow::splay_tree {
          assert!(get_node_by_index(&tree, *option::borrow(&root_left_node.right)).key == 2, ENO_MESSAGE);
      }
 
-     #[test]
+//     #[test]
 //     fun test_right_rotate() {
 //         let tree = init_tree<u64>();
 //
