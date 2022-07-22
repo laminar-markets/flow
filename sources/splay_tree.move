@@ -4,7 +4,6 @@ module flow::splay_tree {
 
     const NULL_PTR: u64 = 0xffffffffffffffff;
 
-    // TODO error codes
     const ENO_MESSAGE: u64 = 0;
 
     struct Node<V: store + drop> has store, drop {
@@ -58,13 +57,6 @@ module flow::splay_tree {
     fun set_root<V: store + drop>(tree: &mut SplayTree<V>, update_to: u64) {
         tree.root = option::some(update_to);
     }
-
-//    fun get_root_node<V: store + drop>(tree: &SplayTree<V>): Option<Node<V>> {
-//        if (option::is_none(&tree.root)) {
-//            option::none<&Node<V>>()
-//        };
-//        *option::some(vector::borrow(&tree.nodes, *option::borrow(&tree.root)))
-//    }
 
     fun get_node_by_index<V: store + drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
         vector::borrow(&tree.nodes, idx)
@@ -218,173 +210,166 @@ module flow::splay_tree {
         assert!(vector::length(&tree.nodes) == 1, ENO_MESSAGE);
     }
 
-    // #[test]
-    // fun test_add_two_nodes() {
-    //     let tree = init_tree<u64>();
+     #[test]
+     fun test_add_two_nodes() {
+         let tree = init_tree<u64>();
 
-    //     let key0: u64 = 0;
-    //     let key1: u64 = 1;
+         let key0: u64 = 0;
+         let key1: u64 = 1;
 
-    //     let node0 = init_node<u64>(key0, 0);
-    //     let node1 = init_node<u64>(key1, 1);
+         let node0 = init_node<u64>(key0, 0);
+         let node1 = init_node<u64>(key1, 1);
 
-    //     insert(&mut tree, node0);
-    //     insert(&mut tree, node1);
+         insert(&mut tree, node0);
+         insert(&mut tree, node1);
 
-    //     assert!(tree.root == key0, ENO_MESSAGE);
-    //     assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
+         let maybe_root = get_root(&tree);
+         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
 
-    //     let maybe_root = get_root(&tree);
-    //     let maybe_root_node = get_root_node(&tree);
-    //     assert!(option::is_some(&maybe_root), ENO_MESSAGE);
-    //     assert!(option::is_some(&maybe_root_node), ENO_MESSAGE);
+         let root = *option::borrow(&maybe_root);
+         let root_node = vector::borrow(&tree.nodes, root);
 
-    //     let root = *option::borrow(&maybe_root);
-    //     let root_node = *option::borrow(&maybe_root_node);
+         assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
+         assert!(root_node.key == key0, ENO_MESSAGE);
+         assert!(get_left(&tree, root) == NULL_PTR, ENO_MESSAGE);
+         assert!(get_right(&tree, root) == key1, ENO_MESSAGE);
+     }
 
-    //     assert!(root_node.key == key0, ENO_MESSAGE);
-    //     assert!(get_left(&tree, root) == NULL_PTR, ENO_MESSAGE);
-    //     assert!(get_right(&tree, root) == key1, ENO_MESSAGE);
-    // }
+     #[test]
+     fun test_get_by_key() {
+         let tree = init_tree<u64>();
 
-    // #[test]
-    // fun test_get_by_key() {
-    //     let tree = init_tree<u64>();
+         let node0 = init_node<u64>(0, 0);
+         let node1 = init_node<u64>(1, 1);
+         let node2 = init_node<u64>(2, 2);
+         let node3 = init_node<u64>(3, 3);
 
-    //     let node0 = init_node<u64>(0, 0);
-    //     let node1 = init_node<u64>(1, 1);
-    //     let node2 = init_node<u64>(2, 2);
-    //     let node3 = init_node<u64>(3, 3);
+         insert(&mut tree, node1);
+         insert(&mut tree, node0);
+         insert(&mut tree, node3);
+         insert(&mut tree, node2);
 
-    //     insert(&mut tree, node1);
-    //     insert(&mut tree, node0);
-    //     insert(&mut tree, node3);
-    //     insert(&mut tree, node2);
+         assert!(get_node_by_key(&tree, 0).value == 0, ENO_MESSAGE);
+         assert!(get_node_by_key(&tree, 1).value == 1, ENO_MESSAGE);
+         assert!(get_node_by_key(&tree, 2).value == 2, ENO_MESSAGE);
+         assert!(get_node_by_key(&tree, 3).value == 3, ENO_MESSAGE);
+     }
 
-    //     assert!(get_node_by_key(&tree, 0).value == 0, ENO_MESSAGE);
-    //     assert!(get_node_by_key(&tree, 1).value == 1, ENO_MESSAGE);
-    //     assert!(get_node_by_key(&tree, 2).value == 2, ENO_MESSAGE);
-    //     assert!(get_node_by_key(&tree, 3).value == 3, ENO_MESSAGE);
-    // }
+     #[test]
+     fun test_left_rotate() {
+         let tree = init_tree<u64>();
 
-    // #[test]
-    // fun test_left_rotate() {
-    //     let tree = init_tree<u64>();
+         let node0 = init_node<u64>(0, 0);
+         let node1 = init_node<u64>(1, 1);
+         let node2 = init_node<u64>(2, 2);
+         let node3 = init_node<u64>(3, 3);
+         let node4 = init_node<u64>(4, 4);
 
-    //     let node0 = init_node<u64>(0, 0);
-    //     let node1 = init_node<u64>(1, 1);
-    //     let node2 = init_node<u64>(2, 2);
-    //     let node3 = init_node<u64>(3, 3);
-    //     let node4 = init_node<u64>(4, 4);
+         insert(&mut tree, node1);
+         insert(&mut tree, node0);
+         insert(&mut tree, node3);
+         insert(&mut tree, node2);
+         insert(&mut tree, node4);
 
-    //     insert(&mut tree, node1);
-    //     insert(&mut tree, node0);
-    //     insert(&mut tree, node3);
-    //     insert(&mut tree, node2);
-    //     insert(&mut tree, node4);
+         // tree should initially look like
+         //    1
+         //   / \
+         //  0   3
+         //     / \
+         //    2   4
 
-    //     // tree should initially look like
-    //     //    1
-    //     //   / \
-    //     //  0   3
-    //     //     / \
-    //     //    2   4
+         let maybe_root = get_root(&tree);
+         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
 
-    //     let maybe_root = get_root(&tree);
-    //     let maybe_root_node = get_root_node(&tree);
-    //     assert!(option::is_some(&maybe_root), ENO_MESSAGE);
-    //     assert!(option::is_some(&maybe_root_node), ENO_MESSAGE);
+         let root = *option::borrow(&maybe_root);
+         let root_node = vector::borrow(&tree.nodes, root);
+         let root_right_node = get_node_by_index(&tree, root_node.right);
 
-    //     let root = *option::borrow(&maybe_root);
-    //     let root_node = option::borrow(&maybe_root_node);
-    //     let root_right_node = get_node_by_index(&tree, root_node.right);
+         assert!(root_node.key == 1, ENO_MESSAGE);
+         assert!(root_right_node.key == 3, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_node.left).key == 0, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_right_node.left).key == 2, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_right_node.right).key == 4, ENO_MESSAGE);
 
-    //     assert!(root_node.key == 1, ENO_MESSAGE);
-    //     assert!(root_right_node.key == 3, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_node.left).key == 0, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_right_node.left).key == 2, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_right_node.right).key == 4, ENO_MESSAGE);
+         rotate_left(&mut tree, root, root_node.right);
 
-    //     rotate_left(&mut tree, root, root_node.right);
+         // tree should now look like
+         //      3
+         //     / \
+         //    1   4
+         //   / \
+         //  0   2
 
-    //     // tree should now look like
-    //     //      3
-    //     //     / \
-    //     //    1   4
-    //     //   / \
-    //     //  0   2
+         let maybe_root = get_root(&tree);
+         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
 
-    //     let maybe_root_node = get_root_node(&tree);
-    //     assert!(option::is_some(&maybe_root_node), ENO_MESSAGE);
+         let root = *option::borrow(&maybe_root);
+         let root_node = vector::borrow(&tree.nodes, root);
+         let root_left_node = get_node_by_index(&tree, root_node.left);
 
-    //     let root_node = *option::borrow(&maybe_root_node);
-    //     let root_left_node = get_node_by_index(&tree, root_node.left);
+         assert!(root_node.key == 3, ENO_MESSAGE);
+         assert!(root_left_node.key == 1, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_node.right).key == 4, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_left_node.left).key == 0, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_left_node.right).key == 2, ENO_MESSAGE);
+     }
 
-    //     assert!(root_node.key == 3, ENO_MESSAGE);
-    //     assert!(root_left_node.key == 1, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_node.right).key == 4, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_left_node.left).key == 0, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_left_node.right).key == 2, ENO_MESSAGE);
-    // }
+     #[test]
+     fun test_right_rotate() {
+         let tree = init_tree<u64>();
 
-    // #[test]
-    // fun test_right_rotate() {
-    //     let tree = init_tree<u64>();
+         let node0 = init_node<u64>(0, 0);
+         let node1 = init_node<u64>(1, 1);
+         let node2 = init_node<u64>(2, 2);
+         let node3 = init_node<u64>(3, 3);
+         let node4 = init_node<u64>(4, 4);
 
-    //     let node0 = init_node<u64>(0, 0);
-    //     let node1 = init_node<u64>(1, 1);
-    //     let node2 = init_node<u64>(2, 2);
-    //     let node3 = init_node<u64>(3, 3);
-    //     let node4 = init_node<u64>(4, 4);
+         insert(&mut tree, node3);
+         insert(&mut tree, node1);
+         insert(&mut tree, node0);
+         insert(&mut tree, node2);
+         insert(&mut tree, node4);
 
-    //     insert(&mut tree, node3);
-    //     insert(&mut tree, node1);
-    //     insert(&mut tree, node0);
-    //     insert(&mut tree, node2);
-    //     insert(&mut tree, node4);
+         // tree should initially look like
+         //      3
+         //     / \
+         //    1   4
+         //   / \
+         //  0   2
 
-    //     // tree should initially look like
-    //     //      3
-    //     //     / \
-    //     //    1   4
-    //     //   / \
-    //     //  0   2
+         let maybe_root = get_root(&tree);
+         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
 
-    //     let maybe_root = get_root(&tree);
-    //     let maybe_root_node = get_root_node(&tree);
-    //     assert!(option::is_some(&maybe_root), ENO_MESSAGE);
-    //     assert!(option::is_some(&maybe_root_node), ENO_MESSAGE);
+         let root = *option::borrow(&maybe_root);
+         let root_node = vector::borrow(&tree.nodes, root);
+         let root_left_node = get_node_by_index(&tree, root_node.left);
 
-    //     let root = *option::borrow(&maybe_root);
-    //     let root_node = option::borrow(&maybe_root_node);
-    //     let root_left_node = get_node_by_index(&tree, root_node.left);
+         assert!(root_node.key == 3, ENO_MESSAGE);
+         assert!(root_left_node.key == 1, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_node.right).key == 4, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_left_node.left).key == 0, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_left_node.right).key == 2, ENO_MESSAGE);
 
-    //     assert!(root_node.key == 3, ENO_MESSAGE);
-    //     assert!(root_left_node.key == 1, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_node.right).key == 4, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_left_node.left).key == 0, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_left_node.right).key == 2, ENO_MESSAGE);
+         rotate_right(&mut tree, root, root_node.left);
 
-    //     let root_idx = get_root(&tree);
-    //     rotate_right(&mut tree, root, root_node.left);
+         // tree should now look like
+         //    1
+         //   / \
+         //  0   3
+         //     / \
+         //    2   4
 
-    //     // tree should now look like
-    //     //    1
-    //     //   / \
-    //     //  0   3
-    //     //     / \
-    //     //    2   4
+         let maybe_root = get_root(&tree);
+         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
 
-    //     let maybe_root_node = get_root_node(&tree);
-    //     assert!(option::is_some(&maybe_root_node), ENO_MESSAGE);
+         let root = *option::borrow(&maybe_root);
+         let root_node = vector::borrow(&tree.nodes, root);
+         let root_right_node = get_node_by_index(&tree, root_node.right);
 
-    //     let root_node = option::borrow(&maybe_root_node);
-    //     let root_right_node = get_node_by_index(&tree, root_node.right);
-
-    //     assert!(root_node.key == 1, ENO_MESSAGE);
-    //     assert!(root_right_node.key == 3, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_node.left).key == 0, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_right_node.left).key == 2, ENO_MESSAGE);
-    //     assert!(get_node_by_index(&tree, root_right_node.right).key == 4, ENO_MESSAGE);
-    // }
+         assert!(root_node.key == 1, ENO_MESSAGE);
+         assert!(root_right_node.key == 3, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_node.left).key == 0, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_right_node.left).key == 2, ENO_MESSAGE);
+         assert!(get_node_by_index(&tree, root_right_node.right).key == 4, ENO_MESSAGE);
+     }
 }
