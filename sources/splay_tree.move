@@ -2,6 +2,9 @@ module flow::splay_tree {
     use std::vector;
     use std::option::{Self, Option};
 
+//    #[test_only]
+//    use std::debug;
+
     const ENO_MESSAGE: u64 = 0;
     const EKEY_NOT_FOUND: u64 = 1;
 
@@ -15,12 +18,14 @@ module flow::splay_tree {
     struct SplayTree<V: store + drop> has store, drop {
         root: Option<u64>,
         nodes: vector<Node<V>>,
+        single_splay: bool,
     }
 
-    public fun init_tree<V: store + drop>(): SplayTree<V> {
+    public fun init_tree<V: store + drop>(single_splay: bool): SplayTree<V> {
         SplayTree {
             root: option::none(),
             nodes: vector::empty<Node<V>>(),
+            single_splay,
         }
     }
 
@@ -74,47 +79,56 @@ module flow::splay_tree {
         }
     }
 
-    fun get_node_by_key<V: store + drop>(tree: &SplayTree<V>, key: u64): &Node<V> {
+    public fun size<V: store + drop>(tree: &SplayTree<V>): u64 {
+        // TODO deal with deleted nodes
+        vector::length(&tree.nodes)
+    }
+
+    public fun get<V: store + drop>(tree: &SplayTree<V>, key: u64): &Node<V> {
         let root = get_root(tree);
         assert!(option::is_some(&root), ENO_MESSAGE);
         get_node_subtree(tree, *option::borrow(&root), key)
     }
 
-    fun insert_child_and_splay_once<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, node: Node<V>) {
+    fun insert_child<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, node: Node<V>) {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
-        let node_count = vector::length(&tree.nodes);
+        let new_node_idx = vector::length(&tree.nodes);
 
         if (node.key < parent_node.key) {
             if (option::is_none(&parent_node.left)) {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-                parent_node.left = option::some(node_count);
-                // one splay step
-                rotate_right(tree, parent_idx, node_count);
+                parent_node.left = option::some(new_node_idx);
+                rotate_right(tree, parent_idx, new_node_idx);
             } else {
-                insert_child_and_splay_once(tree, *option::borrow(&parent_node.left), node);
+                insert_child(tree, *option::borrow(&parent_node.left), node);
+                if (!tree.single_splay) {
+                    rotate_right(tree, parent_idx, new_node_idx);
+                }
             }
         } else if (node.key > parent_node.key) {
             if (option::is_none(&parent_node.right)) {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-                parent_node.right = option::some(node_count);
-                // one splay step
-                rotate_left(tree, parent_idx, node_count);
+                parent_node.right = option::some(new_node_idx);
+                rotate_left(tree, parent_idx, new_node_idx);
             } else {
-                insert_child_and_splay_once(tree, *option::borrow(&parent_node.right), node);
+                insert_child(tree, *option::borrow(&parent_node.right), node);
+                if (!tree.single_splay) {
+                    rotate_left(tree, parent_idx, new_node_idx);
+                }
             }
         }
     }
     
-    public fun insert_and_splay_once<V: store + drop>(tree: &mut SplayTree<V>, node: Node<V>) {
+    public fun insert<V: store + drop>(tree: &mut SplayTree<V>, node: Node<V>) {
         if (option::is_none(&tree.root)) {
             vector::push_back(&mut tree.nodes, node);
             set_root(tree, 0);
         } else {
             let root = get_root(tree);
             assert!(option::is_some(&root), ENO_MESSAGE);
-            insert_child_and_splay_once(tree, *option::borrow(&root), node);
+            insert_child(tree, *option::borrow(&root), node);
         }
     }
 
@@ -144,9 +158,31 @@ module flow::splay_tree {
         }
     }
 
+    fun min_subtree<V: store + drop>(tree: &SplayTree<V>, idx: u64): u64 {
+        let maybe_left = get_left(tree, idx);
+        if (option::is_none(&maybe_left)) {
+            idx
+        } else {
+            min_subtree(tree, *option::borrow(&maybe_left))
+        }
+
+    }
+
+    public fun min<V: store + drop>(tree: &SplayTree<V>): &Node<V> {
+        assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
+        let min_idx = min_subtree(tree, *option::borrow(&get_root(tree)));
+        vector::borrow(&tree.nodes, min_idx)
+    }
+
+//    public fun next<V: store + drop>(tree: &SplayTree<V>, iter: Iterator<V>) {
+//        if (!iter.reverse) {
+//
+//        }
+//    }
+
     #[test]
     fun test_init_tree() {
-        let tree = init_tree<u64>();
+        let tree = init_tree<u64>(true);
 
         assert!(option::is_none(&tree.root), ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
@@ -164,13 +200,13 @@ module flow::splay_tree {
 
     #[test]
     fun test_add_node() {
-        let tree = init_tree<u64>();
+        let tree = init_tree<u64>(true);
         let node = init_node<u64>(0, 0);
 
         assert!(option::is_none(&tree.root), ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
 
-        insert_and_splay_once(&mut tree, node);
+        insert(&mut tree, node);
 
         assert!(option::is_some(&tree.root), ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 1, ENO_MESSAGE);
@@ -178,7 +214,7 @@ module flow::splay_tree {
 
      #[test]
      fun test_add_two_nodes() {
-         let tree = init_tree<u64>();
+         let tree = init_tree<u64>(true);
 
          let key0: u64 = 0;
          let key1: u64 = 1;
@@ -186,8 +222,8 @@ module flow::splay_tree {
          let node0 = init_node<u64>(key0, 0);
          let node1 = init_node<u64>(key1, 1);
 
-         insert_and_splay_once(&mut tree, node0);
-         insert_and_splay_once(&mut tree, node1);
+         insert(&mut tree, node0);
+         insert(&mut tree, node1);
 
          let maybe_root = get_root(&tree);
          assert!(option::is_some(&maybe_root), ENO_MESSAGE);
@@ -196,30 +232,83 @@ module flow::splay_tree {
          let root_node = vector::borrow(&tree.nodes, root);
 
          assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
-         assert!(root_node.key == key0, ENO_MESSAGE);
-         assert!(option::is_none(&get_left(&tree, root)), ENO_MESSAGE);
-         assert!(*option::borrow(&get_right(&tree, root)) == key1, ENO_MESSAGE);
+         assert!(root_node.key == key1, ENO_MESSAGE);
+         assert!(*option::borrow(&get_left(&tree, root)) == key0, ENO_MESSAGE);
+         assert!(option::is_none(&get_right(&tree, root)), ENO_MESSAGE);
      }
 
-     #[test]
-     fun test_get_by_key() {
-         let tree = init_tree<u64>();
+    #[test]
+    fun test_add_three_nodes() {
+        let tree = init_tree<u64>(true);
 
-         let node0 = init_node<u64>(0, 0);
-         let node1 = init_node<u64>(1, 1);
-         let node2 = init_node<u64>(2, 2);
-         let node3 = init_node<u64>(3, 3);
+        let key0: u64 = 0;
+        let key1: u64 = 1;
+        let key2: u64 = 2;
 
-         insert_and_splay_once(&mut tree, node1);
-         insert_and_splay_once(&mut tree, node0);
-         insert_and_splay_once(&mut tree, node3);
-         insert_and_splay_once(&mut tree, node2);
+        let node0 = init_node<u64>(key0, 0);
+        let node1 = init_node<u64>(key1, 1);
+        let node2 = init_node<u64>(key2, 2);
 
-         assert!(get_node_by_key(&tree, 0).value == 0, ENO_MESSAGE);
-         assert!(get_node_by_key(&tree, 1).value == 1, ENO_MESSAGE);
-         assert!(get_node_by_key(&tree, 2).value == 2, ENO_MESSAGE);
-         assert!(get_node_by_key(&tree, 3).value == 3, ENO_MESSAGE);
-     }
+        insert(&mut tree, node0);
+        insert(&mut tree, node1);
+        insert(&mut tree, node2);
+
+        let maybe_root = get_root(&tree);
+        assert!(option::is_some(&maybe_root), ENO_MESSAGE);
+
+        let root = *option::borrow(&maybe_root);
+        let root_node = vector::borrow(&tree.nodes, root);
+
+        assert!(size(&tree) == 3, ENO_MESSAGE);
+        assert!(root_node.key == key2, ENO_MESSAGE);
+        assert!(*option::borrow(&get_left(&tree, root)) == key1, ENO_MESSAGE);
+        assert!(option::is_none(&get_right(&tree, root)), ENO_MESSAGE);
+
+        let maybe_root_left = get_left(&tree, root);
+        assert!(option::is_some(&maybe_root_left), ENO_MESSAGE);
+        let root_left = *option::borrow(&maybe_root_left);
+
+        assert!(get_node_by_index(&tree, root_left).key == key1, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, *option::borrow(&get_node_by_index(&tree, root_left).left)).key == key0, ENO_MESSAGE);
+
+        assert!(get(&tree, key0).value == 0, ENO_MESSAGE);
+        assert!(get(&tree, key1).value == 1, ENO_MESSAGE);
+        assert!(get(&tree, key2).value == 2, ENO_MESSAGE);
+    }
+
+//    #[test]
+//    fun test_min() {
+//        let tree = init_tree<u64>(true);
+//
+//        let node0 = init_node<u64>(0, 0);
+//        let node1 = init_node<u64>(0, 1);
+//
+//        insert(&mut tree, node0);
+//        insert(&mut tree, node1);
+//
+//        let min = min(&tree);
+//        assert!(min.key == 0, ENO_MESSAGE);
+//    }
+
+//     #[test]
+//     fun test_get_by_key() {
+//         let tree = init_tree<u64>(true);
+//
+//         let node0 = init_node<u64>(0, 0);
+//         let node1 = init_node<u64>(1, 1);
+//         let node2 = init_node<u64>(2, 2);
+//         let node3 = init_node<u64>(3, 3);
+//
+//         insert(&mut tree, node1);
+//         insert(&mut tree, node0);
+//         insert(&mut tree, node3);
+//         insert(&mut tree, node2);
+//
+//         assert!(get(&tree, 0).value == 0, ENO_MESSAGE);
+//         assert!(get(&tree, 1).value == 1, ENO_MESSAGE);
+//         assert!(get(&tree, 2).value == 2, ENO_MESSAGE);
+//         assert!(get(&tree, 3).value == 3, ENO_MESSAGE);
+//     }
 
 //     #[test]
 //     fun test_left_rotate() {
