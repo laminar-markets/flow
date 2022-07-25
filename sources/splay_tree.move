@@ -105,6 +105,28 @@ module flow::splay_tree {
         get_node_subtree(tree, *option::borrow(&root), key)
     }
 
+    fun contains_node_subtree<V: store + drop>(tree: &SplayTree<V>, parent_idx: u64, key: u64): bool {
+        let parent_node = vector::borrow(&tree.nodes, parent_idx);
+        if (key == parent_node.key) {
+            true
+        } else if (key < parent_node.key && option::is_some(&parent_node.left)) {
+            contains_node_subtree(tree, *option::borrow(&parent_node.left), key)
+        } else if (key > parent_node.key && option::is_some(&parent_node.right)) {
+            contains_node_subtree(tree, *option::borrow(&parent_node.right), key)
+        } else {
+            false
+        }
+    }
+
+    public fun contains<V: store + drop>(tree: &SplayTree<V>, key: u64): bool {
+        let root = get_root(tree);
+        if (option::is_none(&root)) {
+            false
+        } else {
+            contains_node_subtree(tree, *option::borrow(&root), key)
+        }
+    }
+
     fun insert_child<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, node: Node<V>) {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
         let new_node_idx = vector::length(&tree.nodes);
@@ -205,13 +227,27 @@ module flow::splay_tree {
         } else {
             min_subtree(tree, *option::borrow(&maybe_left))
         }
-
     }
 
     public fun min<V: store + drop>(tree: &SplayTree<V>): &Node<V> {
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
         let min_idx = min_subtree(tree, *option::borrow(&get_root(tree)));
         vector::borrow(&tree.nodes, min_idx)
+    }
+
+    fun max_subtree<V: store + drop>(tree: &SplayTree<V>, idx: u64): u64 {
+        let maybe_right = get_right(tree, idx);
+        if (option::is_none(&maybe_right)) {
+            idx
+        } else {
+            max_subtree(tree, *option::borrow(&maybe_right))
+        }
+    }
+
+    public fun max<V: store + drop>(tree: &SplayTree<V>): &Node<V> {
+        assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
+        let max_idx = max_subtree(tree, *option::borrow(&get_root(tree)));
+        vector::borrow(&tree.nodes, max_idx)
     }
 
     #[test]
@@ -317,6 +353,20 @@ module flow::splay_tree {
     }
 
     #[test]
+    fun test_max() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        let max = max(&tree);
+        assert!(max.key == 5, ENO_MESSAGE);
+    }
+
+    #[test]
     fun test_option_comparison() {
         let a = option::some(123);
         let b = option::some(123);
@@ -372,6 +422,24 @@ module flow::splay_tree {
          assert!(get(&tree, 1).value == 1, ENO_MESSAGE);
          assert!(get(&tree, 2).value == 2, ENO_MESSAGE);
      }
+
+    #[test]
+    fun test_contains() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
+        assert!(!contains(&tree, 6), ENO_MESSAGE);
+    }
 
 //     #[test]
 //     fun test_left_rotate() {
