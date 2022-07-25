@@ -7,6 +7,7 @@ module flow::splay_tree {
 
     const ENO_MESSAGE: u64 = 0;
     const EKEY_NOT_FOUND: u64 = 1;
+    const EPARENT_CHILD_MISMATCH: u64 = 2;
 
     struct Node<V: store + drop> has store, drop {
         key: u64,
@@ -104,7 +105,7 @@ module flow::splay_tree {
         get_node_subtree(tree, *option::borrow(&root), key)
     }
 
-    fun insert_child<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, node: Node<V>) {
+    fun insert_child<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, node: Node<V>) {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
         let new_node_idx = vector::length(&tree.nodes);
 
@@ -113,11 +114,11 @@ module flow::splay_tree {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
                 parent_node.left = option::some(new_node_idx);
-                rotate_right(tree, parent_idx, new_node_idx);
+                rotate_right(tree, parent_idx, grandparent_idx, new_node_idx);
             } else {
-                insert_child(tree, *option::borrow(&parent_node.left), node);
+                insert_child(tree, *option::borrow(&parent_node.left), option::some(parent_idx), node);
                 if (!tree.single_splay) {
-                    rotate_right(tree, parent_idx, new_node_idx);
+                    rotate_right(tree, parent_idx, grandparent_idx, new_node_idx);
                 }
             }
         } else if (node.key > parent_node.key) {
@@ -125,11 +126,11 @@ module flow::splay_tree {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
                 parent_node.right = option::some(new_node_idx);
-                rotate_left(tree, parent_idx, new_node_idx);
+                rotate_left(tree, parent_idx, grandparent_idx, new_node_idx);
             } else {
-                insert_child(tree, *option::borrow(&parent_node.right), node);
+                insert_child(tree, *option::borrow(&parent_node.right), option::some(parent_idx), node);
                 if (!tree.single_splay) {
-                    rotate_left(tree, parent_idx, new_node_idx);
+                    rotate_left(tree, parent_idx, grandparent_idx, new_node_idx);
                 }
             }
         }
@@ -142,32 +143,50 @@ module flow::splay_tree {
         } else {
             let root = get_root(tree);
             assert!(option::is_some(&root), ENO_MESSAGE);
-            insert_child(tree, *option::borrow(&root), node);
+            insert_child(tree, *option::borrow(&root), option::none<u64>(), node);
         }
     }
 
-    fun rotate_left<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, child_idx: u64) {
+    fun rotate_left<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, child_idx: u64) {
         let child_left = get_left(tree, child_idx);
         set_right(tree, parent_idx, child_left);
         set_left(tree, child_idx, option::some(parent_idx));
-        
-        let root = get_root(tree);
-        assert!(option::is_some(&root), ENO_MESSAGE);
 
-        if (*option::borrow(&root) == parent_idx) {
+        if (option::is_some(&grandparent_idx)) {
+            let grandparent_idx = *option::borrow(&grandparent_idx);
+            if (get_left(tree, grandparent_idx) == option::some(parent_idx)) {
+                set_left(tree, grandparent_idx, option::some(child_idx));
+            } else if (get_right(tree, grandparent_idx) == option::some(parent_idx)) {
+                set_right(tree, grandparent_idx, option::some(child_idx));
+            } else {
+                abort EPARENT_CHILD_MISMATCH
+            }
+        } else {
+            let root = get_root(tree);
+            assert!(option::is_some(&root), ENO_MESSAGE);
+            assert!(*option::borrow(&root) == parent_idx, ENO_MESSAGE);
             set_root(tree, child_idx);
         }
     }
 
-    fun rotate_right<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, child_idx: u64) {
+    fun rotate_right<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, child_idx: u64) {
         let child_right = get_right(tree, child_idx);
         set_left(tree, parent_idx, child_right);
         set_right(tree, child_idx, option::some(parent_idx));
-        
-        let root = get_root(tree);
-        assert!(option::is_some(&root), ENO_MESSAGE);
 
-        if (*option::borrow(&root) == parent_idx) {
+        if (option::is_some(&grandparent_idx)) {
+            let grandparent_idx = *option::borrow(&grandparent_idx);
+            if (get_left(tree, grandparent_idx) == option::some(parent_idx)) {
+                set_left(tree, grandparent_idx, option::some(child_idx));
+            } else if (get_right(tree, grandparent_idx) == option::some(parent_idx)) {
+                set_right(tree, grandparent_idx, option::some(child_idx));
+            } else {
+                abort EPARENT_CHILD_MISMATCH
+            }
+        } else {
+            let root = get_root(tree);
+            assert!(option::is_some(&root), ENO_MESSAGE);
+            assert!(*option::borrow(&root) == parent_idx, ENO_MESSAGE);
             set_root(tree, child_idx);
         }
     }
@@ -187,12 +206,6 @@ module flow::splay_tree {
         let min_idx = min_subtree(tree, *option::borrow(&get_root(tree)));
         vector::borrow(&tree.nodes, min_idx)
     }
-
-//    public fun next<V: store + drop>(tree: &SplayTree<V>, iter: Iterator<V>) {
-//        if (!iter.reverse) {
-//
-//        }
-//    }
 
     #[test]
     fun test_init_tree() {
@@ -290,39 +303,80 @@ module flow::splay_tree {
         assert!(get(&tree, key2).value == 2, ENO_MESSAGE);
     }
 
-//    #[test]
-//    fun test_min() {
-//        let tree = init_tree<u64>(true);
-//
-//        let node0 = init_node<u64>(0, 0);
-//        let node1 = init_node<u64>(0, 1);
-//
-//        insert(&mut tree, node0);
-//        insert(&mut tree, node1);
-//
-//        let min = min(&tree);
-//        assert!(min.key == 0, ENO_MESSAGE);
-//    }
+    #[test]
+    fun test_min() {
+        let tree = init_tree<u64>(true);
 
-//     #[test]
-//     fun test_get_by_key() {
-//         let tree = init_tree<u64>(true);
-//
-//         let node0 = init_node<u64>(0, 0);
-//         let node1 = init_node<u64>(1, 1);
-//         let node2 = init_node<u64>(2, 2);
-//         let node3 = init_node<u64>(3, 3);
-//
-//         insert(&mut tree, node1);
-//         insert(&mut tree, node0);
-//         insert(&mut tree, node3);
-//         insert(&mut tree, node2);
-//
-//         assert!(get(&tree, 0).value == 0, ENO_MESSAGE);
-//         assert!(get(&tree, 1).value == 1, ENO_MESSAGE);
-//         assert!(get(&tree, 2).value == 2, ENO_MESSAGE);
-//         assert!(get(&tree, 3).value == 3, ENO_MESSAGE);
-//     }
+        let node0 = init_node<u64>(0, 0);
+        let node1 = init_node<u64>(0, 1);
+
+        insert(&mut tree, node0);
+        insert(&mut tree, node1);
+
+        let min = min(&tree);
+        assert!(min.key == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_option_comparison() {
+        let a = option::some(123);
+        let b = option::some(123);
+        assert!(a == b, ENO_MESSAGE);
+    }
+
+     #[test]
+     fun test_get_by_key() {
+         let tree = init_tree<u64>(true);
+
+         let node0 = init_node<u64>(0, 0);
+         let node1 = init_node<u64>(1, 1);
+         let node2 = init_node<u64>(2, 2);
+
+         insert(&mut tree, node1);
+         insert(&mut tree, node0);
+
+         // Tree should look like
+         //  0
+         //   \
+         //    1
+
+         let root = *option::borrow(&get_root(&tree));
+         let root_node = get_node_by_index(&tree, root);
+         assert!(root_node.key == 0, ENO_MESSAGE);
+
+         let maybe_root_right = root_node.right;
+         let root_right = *option::borrow(&maybe_root_right);
+         let root_right_node = get_node_by_index(&tree, root_right);
+         assert!(root_right_node.key == 1, ENO_MESSAGE);
+
+         insert(&mut tree, node2);
+         // Tree should look like
+         //  0
+         //   \
+         //    2
+         //   /
+         //  1
+
+         let root = *option::borrow(&get_root(&tree));
+         let root_node = get_node_by_index(&tree, root);
+
+         let maybe_root_right = root_node.right;
+
+         assert!(option::is_some(&maybe_root_right), ENO_MESSAGE);
+
+         let root_right = *option::borrow(&maybe_root_right);
+         let root_right_node = get_node_by_index(&tree, root_right);
+         assert!(root_right_node.key == 2, ENO_MESSAGE);
+
+         let child = *option::borrow(&root_right_node.left);
+         let child_node = get_node_by_index(&tree, child);
+
+         assert!(child_node.key == 1, ENO_MESSAGE);
+
+         assert!(get(&tree, 0).value == 0, ENO_MESSAGE);
+         assert!(get(&tree, 1).value == 1, ENO_MESSAGE);
+         assert!(get(&tree, 2).value == 2, ENO_MESSAGE);
+     }
 
 //     #[test]
 //     fun test_left_rotate() {
