@@ -21,6 +21,12 @@ module flow::splay_tree {
         single_splay: bool,
     }
 
+    struct Iterator has drop {
+        current_node: Option<u64>,
+        parent_path: vector<u64>,
+        reverse: bool
+    }
+
     public fun init_tree<V: store + drop>(single_splay: bool): SplayTree<V> {
         SplayTree {
             root: option::none(),
@@ -35,6 +41,14 @@ module flow::splay_tree {
             value,
             left: option::none<u64>(),
             right: option::none<u64>(),
+        }
+    }
+
+    public fun init_iterator(reverse: bool): Iterator {
+        Iterator {
+            current_node: option::none<u64>(),
+            parent_path: vector::empty(),
+            reverse
         }
     }
 
