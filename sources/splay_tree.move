@@ -94,6 +94,19 @@ module flow::splay_tree {
         }
     }
 
+    fun get_mut_node_subtree<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, key: u64): &mut Node<V> {
+        let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
+        if (key == parent_node.key) {
+            parent_node
+        } else if (key < parent_node.key) {
+            assert!(option::is_some(&parent_node.left), EKEY_NOT_FOUND);
+            get_mut_node_subtree(tree, *option::borrow(&parent_node.left), key)
+        } else {
+            assert!(option::is_some(&parent_node.right), EKEY_NOT_FOUND);
+            get_mut_node_subtree(tree, *option::borrow(&parent_node.right), key)
+        }
+    }
+
     public fun size<V: store + drop>(tree: &SplayTree<V>): u64 {
         // TODO deal with deleted nodes
         vector::length(&tree.nodes)
@@ -103,6 +116,12 @@ module flow::splay_tree {
         let root = get_root(tree);
         assert!(option::is_some(&root), ENO_MESSAGE);
         get_node_subtree(tree, *option::borrow(&root), key)
+    }
+
+    public fun get_mut<V: store + drop>(tree: &mut SplayTree<V>, key: u64): &mut Node<V> {
+        let root = get_root(tree);
+        assert!(option::is_some(&root), ENO_MESSAGE);
+        get_mut_node_subtree(tree, *option::borrow(&root), key)
     }
 
     fun contains_node_subtree<V: store + drop>(tree: &SplayTree<V>, parent_idx: u64, key: u64): bool {
@@ -439,6 +458,17 @@ module flow::splay_tree {
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
         assert!(!contains(&tree, 6), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_get_mut() {
+        let tree = init_tree<u64>(true);
+        insert(&mut tree, 2, 2);
+        let mutable_node = get_mut(&mut tree, 2);
+        assert!(mutable_node.value == 2, ENO_MESSAGE);
+        mutable_node.value = 3;
+        let node = get(&mut tree, 2);
+        assert!(node.value == 3, ENO_MESSAGE);
     }
 
 //     #[test]
