@@ -136,7 +136,14 @@ module flow::splay_tree {
         }
     }
     
-    public fun insert<V: store + drop>(tree: &mut SplayTree<V>, node: Node<V>) {
+    public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
+        let node = Node {
+            key,
+            value,
+            left: option::none(),
+            right: option::none()
+        };
+
         if (option::is_none(&tree.root)) {
             vector::push_back(&mut tree.nodes, node);
             set_root(tree, 0);
@@ -228,12 +235,11 @@ module flow::splay_tree {
     #[test]
     fun test_add_node() {
         let tree = init_tree<u64>(true);
-        let node = init_node<u64>(0, 0);
 
         assert!(option::is_none(&tree.root), ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
 
-        insert(&mut tree, node);
+        insert(&mut tree, 0, 0);
 
         assert!(option::is_some(&tree.root), ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 1, ENO_MESSAGE);
@@ -246,11 +252,8 @@ module flow::splay_tree {
          let key0: u64 = 0;
          let key1: u64 = 1;
 
-         let node0 = init_node<u64>(key0, 0);
-         let node1 = init_node<u64>(key1, 1);
-
-         insert(&mut tree, node0);
-         insert(&mut tree, node1);
+         insert(&mut tree, key0, 0);
+         insert(&mut tree, key1, 1);
 
          let maybe_root = get_root(&tree);
          assert!(option::is_some(&maybe_root), ENO_MESSAGE);
@@ -272,13 +275,9 @@ module flow::splay_tree {
         let key1: u64 = 1;
         let key2: u64 = 2;
 
-        let node0 = init_node<u64>(key0, 0);
-        let node1 = init_node<u64>(key1, 1);
-        let node2 = init_node<u64>(key2, 2);
-
-        insert(&mut tree, node0);
-        insert(&mut tree, node1);
-        insert(&mut tree, node2);
+        insert(&mut tree, key0, 0);
+        insert(&mut tree, key1, 1);
+        insert(&mut tree, key2, 2);
 
         let maybe_root = get_root(&tree);
         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
@@ -307,14 +306,14 @@ module flow::splay_tree {
     fun test_min() {
         let tree = init_tree<u64>(true);
 
-        let node0 = init_node<u64>(0, 0);
-        let node1 = init_node<u64>(0, 1);
-
-        insert(&mut tree, node0);
-        insert(&mut tree, node1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
 
         let min = min(&tree);
-        assert!(min.key == 0, ENO_MESSAGE);
+        assert!(min.key == 1, ENO_MESSAGE);
     }
 
     #[test]
@@ -328,12 +327,8 @@ module flow::splay_tree {
      fun test_get_by_key() {
          let tree = init_tree<u64>(true);
 
-         let node0 = init_node<u64>(0, 0);
-         let node1 = init_node<u64>(1, 1);
-         let node2 = init_node<u64>(2, 2);
-
-         insert(&mut tree, node1);
-         insert(&mut tree, node0);
+         insert(&mut tree, 1, 1);
+         insert(&mut tree, 0, 0);
 
          // Tree should look like
          //  0
@@ -349,7 +344,7 @@ module flow::splay_tree {
          let root_right_node = get_node_by_index(&tree, root_right);
          assert!(root_right_node.key == 1, ENO_MESSAGE);
 
-         insert(&mut tree, node2);
+         insert(&mut tree, 2, 2);
          // Tree should look like
          //  0
          //   \
