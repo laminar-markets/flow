@@ -550,4 +550,50 @@ module flow::splay_tree {
 
         assert!(iter.is_done, ENO_MESSAGE);
     }
+
+    #[test]
+    fun test_iter_traversal2() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        let iter = init_iterator(false);
+
+        let i = 0;
+        while (i < 6) {
+            let next = next(&tree, &mut iter);
+            assert!(next.value == i, ENO_MESSAGE);
+            i = i + 1;
+        };
+
+        assert!(iter.is_done, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_iter_traversal3() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+
+        let iter = init_iterator(false);
+
+        let i = 0;
+        while (i < 6) {
+            let next = next(&tree, &mut iter);
+            assert!(next.value == i, ENO_MESSAGE);
+            i = i + 1;
+        };
+
+        assert!(iter.is_done, ENO_MESSAGE);
+    }
 }
