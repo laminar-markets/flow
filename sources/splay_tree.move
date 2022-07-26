@@ -533,4 +533,15 @@ module flow::splay_tree {
         let node = get(&mut tree, 2);
         assert!(*node == 3, ENO_MESSAGE);
     }
+
+    #[test]
+    fun test_init_iter() {
+        let iter = init_iterator(false);
+
+        assert!(iter.current_node == option::none(), ENO_MESSAGE);
+        assert!(vector::is_empty(&iter.parent_path), ENO_MESSAGE);
+        assert!(!iter.reverse, ENO_MESSAGE);
+        assert!(!iter.left_visited, ENO_MESSAGE);
+        assert!(!iter.right_visited, ENO_MESSAGE);
+    }
 }
