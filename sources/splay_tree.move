@@ -290,12 +290,9 @@ module flow::splay_tree {
 
         if (vector::is_empty(&iter.stack)) {
             let current = *option::borrow(&get_root(tree));
-            let maybe_left = get_left(tree, current);
-            if (option::is_some(&maybe_left)) {
-                stack_left(tree, iter, current);
-                let res = top(&iter.stack);
-                return get_node_by_index(tree, res)
-            }
+            stack_left(tree, iter, current);
+            let res = top(&iter.stack);
+            return get_node_by_index(tree, res)
         };
         let current = top(&iter.stack);
         let maybe_right = get_right(tree, current);
@@ -335,12 +332,9 @@ module flow::splay_tree {
 
         if (vector::is_empty(&iter.stack)) {
             let current = *option::borrow(&get_root(tree));
-            let maybe_right = get_right(tree, current);
-            if (option::is_some(&maybe_right)) {
-                stack_right(tree, iter, current);
-                let res = top(&iter.stack);
-                return get_node_by_index(tree, res)
-            }
+            stack_right(tree, iter, current);
+            let res = top(&iter.stack);
+            return get_node_by_index(tree, res)
         };
         let current = top(&iter.stack);
         let maybe_left = get_left(tree, current);
@@ -595,8 +589,6 @@ module flow::splay_tree {
             assert!(next.value == i, ENO_MESSAGE);
             i = i + 1;
         };
-
-        assert!(iter.is_done, ENO_MESSAGE);
     }
 
     #[test]
@@ -618,8 +610,6 @@ module flow::splay_tree {
             assert!(next.value == i, ENO_MESSAGE);
             i = i + 1;
         };
-
-        assert!(iter.is_done, ENO_MESSAGE);
     }
 
     #[test]
@@ -641,7 +631,68 @@ module flow::splay_tree {
             assert!(next.value == i, ENO_MESSAGE);
             i = i + 1;
         };
+    }
 
-        assert!(iter.is_done, ENO_MESSAGE);
+    #[test]
+    fun test_iter_reverse_traversal() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        let iter = init_iterator(true);
+
+        let i = 6;
+        while (i >= 1) {
+            i = i - 1;
+            let prev = prev(&tree, &mut iter);
+            assert!(prev.value == i, ENO_MESSAGE);
+        };
+    }
+
+    #[test]
+    fun test_iter_reverse_traversal2() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        let iter = init_iterator(true);
+
+        let i = 6;
+        while (i >= 1) {
+            i = i - 1;
+            let prev = prev(&tree, &mut iter);
+            assert!(prev.value == i, ENO_MESSAGE);
+        };
+    }
+
+    #[test]
+    fun test_iter_reverse_traversal3() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+
+        let iter = init_iterator(true);
+
+        let i = 6;
+        while (i >= 1) {
+            i = i - 1;
+            let prev = prev(&tree, &mut iter);
+            assert!(prev.value == i, ENO_MESSAGE);
+        };
     }
 }
