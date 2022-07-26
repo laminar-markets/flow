@@ -8,6 +8,7 @@ module flow::splay_tree {
     const ENO_MESSAGE: u64 = 0;
     const EKEY_NOT_FOUND: u64 = 1;
     const EPARENT_CHILD_MISMATCH: u64 = 2;
+    const EITER_ALREADY_DONE: u64 = 3;
 
     struct Node<V: store + drop> has store, drop {
         key: u64,
@@ -25,7 +26,10 @@ module flow::splay_tree {
     struct Iterator has drop {
         current_node: Option<u64>,
         parent_path: vector<u64>,
-        reverse: bool
+        reverse: bool,
+        left_visited: bool,
+        right_visited: bool,
+        is_done: bool,
     }
 
     public fun init_tree<V: store + drop>(single_splay: bool): SplayTree<V> {
@@ -49,7 +53,10 @@ module flow::splay_tree {
         Iterator {
             current_node: option::none<u64>(),
             parent_path: vector::empty(),
-            reverse
+            reverse,
+            left_visited: false,
+            right_visited: false,
+            is_done: false,
         }
     }
 
@@ -261,6 +268,75 @@ module flow::splay_tree {
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
         let max_idx = max_subtree(tree, *option::borrow(&get_root(tree)));
         get_node_by_index(tree, max_idx)
+    }
+
+    fun traverse_left<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64): u64 {
+        let current = parent_idx;
+        let maybe_left = get_left(tree, current);
+        while (option::is_some(&maybe_left)) {
+            vector::push_back(&mut iter.parent_path, current);
+            current = *option::borrow(&maybe_left);
+        };
+        current
+    }
+
+    fun traverse_right<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64): u64 {
+        let current = parent_idx;
+        let maybe_right = get_right(tree, current);
+        while (option::is_some(&maybe_right)) {
+            vector::push_back(&mut iter.parent_path, current);
+            current = *option::borrow(&maybe_right);
+        };
+        current
+    }
+
+    public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
+        assert!(!iter.is_done, EITER_ALREADY_DONE);
+        let current: u64;
+        if (option::is_none(&iter.current_node)) {
+            let root = get_root(tree);
+            assert!(option::is_some(&root), ENO_MESSAGE);
+            current = *option::borrow(&root);
+        } else {
+            current = *option::borrow(&iter.current_node);
+        };
+        if (!iter.reverse) {
+            let left = get_left(tree, current);
+            if (option::is_some(&left) && !iter.left_visited) {
+                current = traverse_left(tree, iter, current);
+                iter.current_node = option::some(current);
+                iter.left_visited = false;
+                iter.right_visited = false;
+                return get_node_by_index(tree, current)
+            };
+
+            let right = get_right(tree, current);
+            if (option::is_some(&right) && !iter.right_visited) {
+                current = traverse_right(tree, iter, current);
+                iter.current_node = option::some(current);
+                iter.left_visited = false;
+                iter.right_visited = false;
+                return get_node_by_index(tree, current)
+            };
+//
+            let parent = vector::pop_back(&mut iter.parent_path);
+            let parent_left = get_left(tree, parent);
+            let parent_right = get_right(tree, parent);
+
+            if (option::is_some(&parent_right) && *option::borrow(&parent_right) == current) {
+                iter.is_done = true;
+                // TODO better way to handle when iterator is done
+                return get_node_by_index(tree, parent)
+            } else if (option::is_some(&parent_left) && *option::borrow(&parent_left) == current) {
+                iter.current_node = option::some(parent);
+                iter.left_visited = true;
+                iter.right_visited = false;
+                return get_node_by_index(tree, parent)
+            };
+        } else {
+            // TODO reverse traversal
+        };
+        abort ENO_MESSAGE
     }
 
     #[test]
