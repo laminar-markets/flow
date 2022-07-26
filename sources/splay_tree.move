@@ -544,4 +544,20 @@ module flow::splay_tree {
         assert!(!iter.left_visited, ENO_MESSAGE);
         assert!(!iter.right_visited, ENO_MESSAGE);
     }
+
+    #[test]
+    fun test_iter_traversal() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        let iter = init_iterator(false);
+
+        let next = next(&tree, &mut iter);
+        assert!(next.value == 1, ENO_MESSAGE);
+    }
 }
