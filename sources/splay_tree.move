@@ -274,6 +274,15 @@ module flow::splay_tree {
         };
     }
 
+    fun stack_right<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
+        let maybe_right = option::some(parent_idx);
+        while (option::is_some(&maybe_right)) {
+            let current = *option::borrow(&maybe_right);
+            maybe_right = get_right(tree, current);
+            vector::push_back(&mut iter.stack, current);
+        };
+    }
+
     public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
         assert!(!iter.is_done, EITER_DONE);
         assert!(!iter.reverse, ENO_MESSAGE);
@@ -309,6 +318,51 @@ module flow::splay_tree {
                     };
                     return get_node_by_index(tree, parent)
                 } else if (option::is_some(&maybe_parent_right) && *option::borrow(&maybe_parent_right) == current) {
+                    current = vector::pop_back(&mut iter.stack);
+                    parent = top(&iter.stack);
+                } else {
+                    abort EPARENT_CHILD_MISMATCH
+                };
+            };
+            abort EITER_DONE
+        }
+    }
+
+    public fun prev<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
+        assert!(!iter.is_done, EITER_DONE);
+        assert!(iter.reverse, ENO_MESSAGE);
+        assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
+
+        if (vector::is_empty(&iter.stack)) {
+            let current = *option::borrow(&get_root(tree));
+            let maybe_right = get_right(tree, current);
+            if (option::is_some(&maybe_right)) {
+                stack_right(tree, iter, current);
+                let res = top(&iter.stack);
+                return get_node_by_index(tree, res)
+            }
+        };
+        let current = top(&iter.stack);
+        let maybe_left = get_left(tree, current);
+        if (option::is_some(&maybe_left)) {
+            current = *option::borrow(&maybe_left);
+            stack_right(tree, iter, current);
+            let res = top(&iter.stack);
+            return get_node_by_index(tree, res)
+        } else {
+            let current = vector::pop_back(&mut iter.stack);
+            let parent = top(&iter.stack);
+
+            while (current != *option::borrow(&get_root(tree))) {
+                let maybe_parent_left = get_left(tree, parent);
+                let maybe_parent_right = get_right(tree, parent);
+
+                if (option::is_some(&maybe_parent_right) && *option::borrow(&maybe_parent_right) == current) {
+                    if (vector::length(&iter.stack) == 1) {
+                        iter.is_done = true;
+                    };
+                    return get_node_by_index(tree, parent)
+                } else if (option::is_some(&maybe_parent_left) && *option::borrow(&maybe_parent_left) == current) {
                     current = vector::pop_back(&mut iter.stack);
                     parent = top(&iter.stack);
                 } else {
