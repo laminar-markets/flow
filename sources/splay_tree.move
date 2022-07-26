@@ -276,6 +276,7 @@ module flow::splay_tree {
         while (option::is_some(&maybe_left)) {
             vector::push_back(&mut iter.parent_path, current);
             current = *option::borrow(&maybe_left);
+            maybe_left = get_left(tree, current);
         };
         current
     }
@@ -286,6 +287,7 @@ module flow::splay_tree {
         while (option::is_some(&maybe_right)) {
             vector::push_back(&mut iter.parent_path, current);
             current = *option::borrow(&maybe_right);
+            maybe_right = get_right(tree, current);
         };
         current
     }
