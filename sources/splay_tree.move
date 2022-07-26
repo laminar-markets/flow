@@ -2,13 +2,10 @@ module flow::splay_tree {
     use std::vector;
     use std::option::{Self, Option};
 
-//    #[test_only]
-//    use std::debug;
-
     const ENO_MESSAGE: u64 = 0;
     const EKEY_NOT_FOUND: u64 = 1;
     const EPARENT_CHILD_MISMATCH: u64 = 2;
-    const EITER_ALREADY_DONE: u64 = 3;
+    const EITER_DONE: u64 = 3;
 
     struct Node<V: store + drop> has store, drop {
         key: u64,
@@ -25,10 +22,8 @@ module flow::splay_tree {
 
     struct Iterator has drop {
         current_node: Option<u64>,
-        parent_path: vector<u64>,
+        stack: vector<u64>,
         reverse: bool,
-        left_visited: bool,
-        right_visited: bool,
         is_done: bool,
     }
 
@@ -52,10 +47,8 @@ module flow::splay_tree {
     public fun init_iterator(reverse: bool): Iterator {
         Iterator {
             current_node: option::none<u64>(),
-            parent_path: vector::empty(),
+            stack: vector::empty(),
             reverse,
-            left_visited: false,
-            right_visited: false,
             is_done: false,
         }
     }
@@ -270,75 +263,65 @@ module flow::splay_tree {
         get_node_by_index(tree, max_idx)
     }
 
-    fun traverse_left<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64): u64 {
-        let current = parent_idx;
-        let maybe_left = get_left(tree, current);
+    fun stack_left<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
+        let maybe_left = option::some(parent_idx);
         while (option::is_some(&maybe_left)) {
-            vector::push_back(&mut iter.parent_path, current);
-            current = *option::borrow(&maybe_left);
+            let current = *option::borrow(&maybe_left);
             maybe_left = get_left(tree, current);
+            vector::push_back(&mut iter.stack, current);
         };
-        current
     }
 
-    fun traverse_right<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64): u64 {
-        let current = parent_idx;
-        let maybe_right = get_right(tree, current);
-        while (option::is_some(&maybe_right)) {
-            vector::push_back(&mut iter.parent_path, current);
-            current = *option::borrow(&maybe_right);
-            maybe_right = get_right(tree, current);
-        };
-        current
+    fun top<T: copy>(v: &vector<T>): T {
+        *vector::borrow(v, vector::length(v) - 1)
     }
 
     public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
-        assert!(!iter.is_done, EITER_ALREADY_DONE);
-        let current: u64;
+        assert!(!iter.is_done, EITER_DONE);
+        assert!(!iter.reverse, ENO_MESSAGE);
+        assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
+
         if (option::is_none(&iter.current_node)) {
-            let root = get_root(tree);
-            assert!(option::is_some(&root), ENO_MESSAGE);
-            current = *option::borrow(&root);
-        } else {
-            current = *option::borrow(&iter.current_node);
+            let current = *option::borrow(&get_root(tree));
+            let maybe_left = get_left(tree, current);
+            if (option::is_some(&maybe_left)) {
+                stack_left(tree, iter, current);
+                let res = top(&iter.stack);
+                iter.current_node = option::some(res);
+                return get_node_by_index(tree, res)
+            }
         };
-        if (!iter.reverse) {
-            let left = get_left(tree, current);
-            if (option::is_some(&left) && !iter.left_visited) {
-                current = traverse_left(tree, iter, current);
-                iter.current_node = option::some(current);
-                iter.left_visited = false;
-                iter.right_visited = false;
-                return get_node_by_index(tree, current)
-            };
-
-            let right = get_right(tree, current);
-            if (option::is_some(&right) && !iter.right_visited) {
-                current = traverse_right(tree, iter, current);
-                iter.current_node = option::some(current);
-                iter.left_visited = false;
-                iter.right_visited = false;
-                return get_node_by_index(tree, current)
-            };
-//
-            let parent = vector::pop_back(&mut iter.parent_path);
-            let parent_left = get_left(tree, parent);
-            let parent_right = get_right(tree, parent);
-
-            if (option::is_some(&parent_right) && *option::borrow(&parent_right) == current) {
-                iter.is_done = true;
-                // TODO better way to handle when iterator is done
-                return get_node_by_index(tree, parent)
-            } else if (option::is_some(&parent_left) && *option::borrow(&parent_left) == current) {
-                iter.current_node = option::some(parent);
-                iter.left_visited = true;
-                iter.right_visited = false;
-                return get_node_by_index(tree, parent)
-            };
+        let current = *option::borrow(&iter.current_node);
+        let maybe_right = get_right(tree, current);
+        if (option::is_some(&maybe_right)) {
+            current = *option::borrow(&maybe_right);
+            stack_left(tree, iter, current);
+            let res = top(&iter.stack);
+            iter.current_node = option::some(res);
+            return get_node_by_index(tree, res)
         } else {
-            // TODO reverse traversal
-        };
-        abort ENO_MESSAGE
+            let current = vector::pop_back(&mut iter.stack);
+            let parent = top(&iter.stack);
+
+            while (current != *option::borrow(&get_root(tree))) {
+                let maybe_parent_left = get_left(tree, parent);
+                let maybe_parent_right = get_right(tree, parent);
+
+                if (option::is_some(&maybe_parent_left) && *option::borrow(&maybe_parent_left) == current) {
+                    iter.current_node = option::some(parent);
+                    if (vector::length(&iter.stack) == 1) {
+                        iter.is_done = true;
+                    };
+                    return get_node_by_index(tree, parent)
+                } else if (option::is_some(&maybe_parent_right) && *option::borrow(&maybe_parent_right) == current) {
+                    current = vector::pop_back(&mut iter.stack);
+                    parent = top(&iter.stack);
+                } else {
+                    abort EPARENT_CHILD_MISMATCH
+                };
+            };
+            abort EITER_DONE
+        }
     }
 
     #[test]
@@ -541,25 +524,30 @@ module flow::splay_tree {
         let iter = init_iterator(false);
 
         assert!(iter.current_node == option::none(), ENO_MESSAGE);
-        assert!(vector::is_empty(&iter.parent_path), ENO_MESSAGE);
+        assert!(vector::is_empty(&iter.stack), ENO_MESSAGE);
         assert!(!iter.reverse, ENO_MESSAGE);
-        assert!(!iter.left_visited, ENO_MESSAGE);
-        assert!(!iter.right_visited, ENO_MESSAGE);
     }
 
     #[test]
     fun test_iter_traversal() {
         let tree = init_tree<u64>(true);
 
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
         insert(&mut tree, 2, 2);
         insert(&mut tree, 3, 3);
         insert(&mut tree, 4, 4);
         insert(&mut tree, 5, 5);
-        insert(&mut tree, 1, 1);
 
         let iter = init_iterator(false);
 
-        let next = next(&tree, &mut iter);
-        assert!(next.value == 1, ENO_MESSAGE);
+        let i = 0;
+        while (i < 6) {
+            let next = next(&tree, &mut iter);
+            assert!(next.value == i, ENO_MESSAGE);
+            i = i + 1;
+        };
+
+        assert!(iter.is_done, ENO_MESSAGE);
     }
 }
