@@ -7,14 +7,14 @@ module flow::splay_tree {
     const EPARENT_CHILD_MISMATCH: u64 = 2;
     const EITER_DONE: u64 = 3;
 
-    struct Node<V: store + copy + drop> has store, drop {
+    struct Node<V: store + drop> has store, drop {
         key: u64,
         value: V,
         left: Option<u64>,
         right: Option<u64>
     }
 
-    struct SplayTree<V: store + copy + drop> has store, drop {
+    struct SplayTree<V: store + drop> has store, drop {
         root: Option<u64>,
         nodes: vector<Node<V>>,
         single_splay: bool,
@@ -26,7 +26,7 @@ module flow::splay_tree {
         is_done: bool,
     }
 
-    public fun init_tree<V: store + copy + drop>(single_splay: bool): SplayTree<V> {
+    public fun init_tree<V: store + drop>(single_splay: bool): SplayTree<V> {
         SplayTree {
             root: option::none(),
             nodes: vector::empty<Node<V>>(),
@@ -34,7 +34,7 @@ module flow::splay_tree {
         }
     }
 
-    fun init_node<V: store + copy + drop>(key: u64, value: V): Node<V> {
+    fun init_node<V: store + drop>(key: u64, value: V): Node<V> {
         Node {
             key,
             value,
@@ -51,39 +51,39 @@ module flow::splay_tree {
         }
     }
 
-    fun get_left<V: store + copy + drop>(tree: &SplayTree<V>, idx: u64): Option<u64> {
+    fun get_left<V: store + drop>(tree: &SplayTree<V>, idx: u64): Option<u64> {
         vector::borrow(&tree.nodes, idx).left
     }
 
-    fun get_right<V: store + copy + drop>(tree: &SplayTree<V>, idx: u64): Option<u64> {
+    fun get_right<V: store + drop>(tree: &SplayTree<V>, idx: u64): Option<u64> {
         vector::borrow(&tree.nodes, idx).right
     }
 
-    fun set_left<V: store + copy + drop>(tree: &mut SplayTree<V>, idx: u64, update_to: Option<u64>) {
+    fun set_left<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, update_to: Option<u64>) {
         vector::borrow_mut(&mut tree.nodes, idx).left = update_to;
     }
 
-    fun set_right<V: store + copy + drop>(tree: &mut SplayTree<V>, idx: u64, update_to: Option<u64>) {
+    fun set_right<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, update_to: Option<u64>) {
         vector::borrow_mut(&mut tree.nodes, idx).right = update_to;
     }
 
-    fun get_root<V: store + copy + drop>(tree: &SplayTree<V>): Option<u64> {
+    fun get_root<V: store + drop>(tree: &SplayTree<V>): Option<u64> {
         tree.root
     }
 
-    fun set_root<V: store + copy + drop>(tree: &mut SplayTree<V>, update_to: u64) {
+    fun set_root<V: store + drop>(tree: &mut SplayTree<V>, update_to: u64) {
         tree.root = option::some(update_to);
     }
 
-    fun get_node_by_index<V: store + copy + drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
+    fun get_node_by_index<V: store + drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
         vector::borrow(&tree.nodes, idx)
     }
 
-    fun get_mut_node_by_index<V: store + copy + drop>(tree: &mut SplayTree<V>, idx: u64): &mut Node<V> {
+    fun get_mut_node_by_index<V: store + drop>(tree: &mut SplayTree<V>, idx: u64): &mut Node<V> {
         vector::borrow_mut(&mut tree.nodes, idx)
     }
 
-    fun get_idx_subtree<V: store + copy + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, key: u64): u64 {
+    fun get_idx_subtree<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, key: u64): u64 {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
         assert!(key != parent_node.key, ENO_MESSAGE);
 
@@ -123,12 +123,12 @@ module flow::splay_tree {
         }
     }
 
-    public fun size<V: store + copy + drop>(tree: &SplayTree<V>): u64 {
+    public fun size<V: store + drop>(tree: &SplayTree<V>): u64 {
         // TODO deal with deleted nodes
         vector::length(&tree.nodes)
     }
 
-    public fun get<V: store + copy + drop>(tree: &mut SplayTree<V>, key: u64): &V {
+    public fun get<V: store + drop>(tree: &mut SplayTree<V>, key: u64): &V {
         let maybe_root = get_root(tree);
         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
 
@@ -143,7 +143,7 @@ module flow::splay_tree {
         }
     }
 
-    public fun get_mut<V: store + copy + drop>(tree: &mut SplayTree<V>, key: u64): &mut V {
+    public fun get_mut<V: store + drop>(tree: &mut SplayTree<V>, key: u64): &mut V {
         let maybe_root = get_root(tree);
         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
 
@@ -158,7 +158,7 @@ module flow::splay_tree {
         }
     }
 
-    fun contains_node_subtree<V: store + copy + drop>(tree: &SplayTree<V>, parent_idx: u64, key: u64): bool {
+    fun contains_node_subtree<V: store + drop>(tree: &SplayTree<V>, parent_idx: u64, key: u64): bool {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
         if (key == parent_node.key) {
             true
@@ -171,7 +171,7 @@ module flow::splay_tree {
         }
     }
 
-    public fun contains<V: store + copy + drop>(tree: &SplayTree<V>, key: u64): bool {
+    public fun contains<V: store + drop>(tree: &SplayTree<V>, key: u64): bool {
         let root = get_root(tree);
         if (option::is_none(&root)) {
             false
@@ -180,7 +180,7 @@ module flow::splay_tree {
         }
     }
 
-    fun insert_child<V: store + copy + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, node: Node<V>) {
+    fun insert_child<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, node: Node<V>) {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
         let new_node_idx = vector::length(&tree.nodes);
 
@@ -211,7 +211,7 @@ module flow::splay_tree {
         }
     }
     
-    public fun insert<V: store + copy + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
+    public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
         let node = init_node(key, value);
         if (option::is_none(&tree.root)) {
             vector::push_back(&mut tree.nodes, node);
@@ -223,7 +223,7 @@ module flow::splay_tree {
         }
     }
 
-    fun rotate_left<V: store + copy + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, child_idx: u64) {
+    fun rotate_left<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, child_idx: u64) {
         let child_left = get_left(tree, child_idx);
         set_right(tree, parent_idx, child_left);
         set_left(tree, child_idx, option::some(parent_idx));
@@ -245,7 +245,7 @@ module flow::splay_tree {
         }
     }
 
-    fun rotate_right<V: store + copy + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, child_idx: u64) {
+    fun rotate_right<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, child_idx: u64) {
         let child_right = get_right(tree, child_idx);
         set_left(tree, parent_idx, child_right);
         set_right(tree, child_idx, option::some(parent_idx));
@@ -267,7 +267,7 @@ module flow::splay_tree {
         }
     }
 
-    fun min_subtree<V: store + copy + drop>(tree: &SplayTree<V>, idx: u64): u64 {
+    fun min_subtree<V: store + drop>(tree: &SplayTree<V>, idx: u64): u64 {
         let maybe_left = get_left(tree, idx);
         if (option::is_none(&maybe_left)) {
             idx
@@ -276,13 +276,13 @@ module flow::splay_tree {
         }
     }
 
-    public fun min<V: store + copy + drop>(tree: &SplayTree<V>): &Node<V> {
+    public fun min<V: store + drop>(tree: &SplayTree<V>): &Node<V> {
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
         let min_idx = min_subtree(tree, *option::borrow(&get_root(tree)));
         get_node_by_index(tree, min_idx)
     }
 
-    fun max_subtree<V: store + copy + drop>(tree: &SplayTree<V>, idx: u64): u64 {
+    fun max_subtree<V: store + drop>(tree: &SplayTree<V>, idx: u64): u64 {
         let maybe_right = get_right(tree, idx);
         if (option::is_none(&maybe_right)) {
             idx
@@ -291,7 +291,7 @@ module flow::splay_tree {
         }
     }
 
-    public fun max<V: store + copy + drop>(tree: &SplayTree<V>): &Node<V> {
+    public fun max<V: store + drop>(tree: &SplayTree<V>): &Node<V> {
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
         let max_idx = max_subtree(tree, *option::borrow(&get_root(tree)));
         get_node_by_index(tree, max_idx)
@@ -301,7 +301,7 @@ module flow::splay_tree {
         *vector::borrow(v, vector::length(v) - 1)
     }
 
-    fun stack_left<V: store + copy + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
+    fun stack_left<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
         let maybe_left = option::some(parent_idx);
         while (option::is_some(&maybe_left)) {
             let current = *option::borrow(&maybe_left);
@@ -310,7 +310,7 @@ module flow::splay_tree {
         };
     }
 
-    fun stack_right<V: store + copy + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
+    fun stack_right<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
         let maybe_right = option::some(parent_idx);
         while (option::is_some(&maybe_right)) {
             let current = *option::borrow(&maybe_right);
@@ -319,7 +319,7 @@ module flow::splay_tree {
         };
     }
 
-    public fun next<V: store + copy + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
+    public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
         assert!(!iter.is_done, EITER_DONE);
         assert!(!iter.reverse, ENO_MESSAGE);
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
@@ -361,7 +361,7 @@ module flow::splay_tree {
         }
     }
 
-    public fun prev<V: store + copy + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
+    public fun prev<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
         assert!(!iter.is_done, EITER_DONE);
         assert!(iter.reverse, ENO_MESSAGE);
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
