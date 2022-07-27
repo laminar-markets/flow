@@ -122,25 +122,47 @@ module flow::splay_tree {
         vector::borrow(&tree.nodes, idx)
     }
 
-    fun get_node_subtree<V: store + drop>(tree: &SplayTree<V>, parent_idx: u64, key: u64): &V {
-        let parent_node = vector::borrow(&tree.nodes, parent_idx);
-        if (key == parent_node.key) {
-            &parent_node.value
-        } else if (key < parent_node.key) {
-            get_node_subtree(tree, unguard(parent_node.left), key)
-        } else {
-            get_node_subtree(tree, unguard(parent_node.right), key)
-        }
+    fun get_mut_node_by_index<V: store + drop>(tree: &mut SplayTree<V>, idx: u64): &mut Node<V> {
+        vector::borrow_mut(&mut tree.nodes, idx)
     }
 
-    fun get_mut_node_subtree<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, key: u64): &mut V {
-        let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-        if (key == parent_node.key) {
-            &mut parent_node.value
-        } else if (key < parent_node.key) {
-            get_mut_node_subtree(tree, unguard(parent_node.left), key)
+    fun get_idx_subtree<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, key: u64): u64 {
+        let parent_node = vector::borrow(&tree.nodes, parent_idx);
+        assert!(key != parent_node.key, ENO_MESSAGE);
+
+        let maybe_left = get_left(tree, parent_idx);
+        let maybe_right = get_right(tree, parent_idx);
+
+        if (key < parent_node.key && option::is_some(&maybe_left)) {
+            let left = *option::borrow(&maybe_left);
+            let left_node = get_node_by_index(tree, left);
+
+            if (key == left_node.key) {
+                rotate_right(tree, parent_idx, grandparent_idx, left);
+                left
+            } else {
+                let res = get_idx_subtree(tree, unguard(parent_node.left), option::some(parent_idx), key);
+                if (!tree.single_splay) {
+                    rotate_right(tree, parent_idx, grandparent_idx, left);
+                };
+                res
+            }
+        } else if (key > parent_node.key && option::is_some(&maybe_right)) {
+            let right = *option::borrow(&maybe_right);
+            let right_node = get_node_by_index(tree, right);
+
+            if (key == right_node.key) {
+                rotate_left(tree, parent_idx, grandparent_idx, right);
+                right
+            } else {
+                let res = get_idx_subtree(tree, right, option::some(parent_idx), key);
+                if (!tree.single_splay) {
+                    rotate_left(tree, parent_idx, grandparent_idx, right);
+                };
+                res
+            }
         } else {
-            get_mut_node_subtree(tree, unguard(parent_node.right), key)
+            abort EKEY_NOT_FOUND
         }
     }
 
@@ -149,37 +171,88 @@ module flow::splay_tree {
         vector::length(&tree.nodes)
     }
 
-    public fun get<V: store + drop>(tree: &SplayTree<V>, key: u64): &V {
-        let root = get_root(tree);
-        assert!(option::is_some(&root), ENO_MESSAGE);
-        get_node_subtree(tree, *option::borrow(&root), key)
+    public fun get<V: store + drop>(tree: &mut SplayTree<V>, key: u64): &V {
+        let maybe_root = get_root(tree);
+        assert!(option::is_some(&maybe_root), ENO_MESSAGE);
+
+        let root = *option::borrow(&maybe_root);
+        let root_node = get_node_by_index(tree, root);
+        if (key == root_node.key) {
+            &root_node.value
+        } else {
+            let idx = get_idx_subtree(tree, root, option::none<u64>(), key);
+            let node = get_node_by_index(tree, idx);
+            &node.value
+        }
     }
 
     public fun get_mut<V: store + drop>(tree: &mut SplayTree<V>, key: u64): &mut V {
-        let root = get_root(tree);
-        assert!(option::is_some(&root), ENO_MESSAGE);
-        get_mut_node_subtree(tree, *option::borrow(&root), key)
+        let maybe_root = get_root(tree);
+        assert!(option::is_some(&maybe_root), ENO_MESSAGE);
+
+        let root = *option::borrow(&maybe_root);
+        let root_node = get_mut_node_by_index(tree, root);
+        if (key == root_node.key) {
+            &mut root_node.value
+        } else {
+            let idx = get_idx_subtree(tree, root, option::none<u64>(), key);
+            let node = get_mut_node_by_index(tree, idx);
+            &mut node.value
+        }
     }
 
-    fun contains_node_subtree<V: store + drop>(tree: &SplayTree<V>, parent_idx: u64, key: u64): bool {
+    fun contains_node_subtree<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, key: u64): bool {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
-        if (key == parent_node.key) {
-            true
-        } else if (key < parent_node.key && is_not_sentinel(parent_node.left)) {
-            contains_node_subtree(tree, unguard(parent_node.left), key)
-        } else if (key > parent_node.key && is_not_sentinel(parent_node.right)) {
-            contains_node_subtree(tree, unguard(parent_node.right), key)
+        assert!(key != parent_node.key, ENO_MESSAGE);
+
+        let maybe_left = get_left(tree, parent_idx);
+        let maybe_right = get_right(tree, parent_idx);
+
+        if (key < parent_node.key && option::is_some(&maybe_left)) {
+            let left = *option::borrow(&maybe_left);
+            let left_node = get_node_by_index(tree, left);
+
+            if (key == left_node.key) {
+                rotate_right(tree, parent_idx, grandparent_idx, left);
+                true
+            } else {
+                let res = contains_node_subtree(tree, unguard(parent_node.left), option::some(parent_idx), key);
+                if (!tree.single_splay) {
+                    rotate_right(tree, parent_idx, grandparent_idx, left);
+                };
+                res
+            }
+        } else if (key > parent_node.key && option::is_some(&maybe_right)) {
+            let right = *option::borrow(&maybe_right);
+            let right_node = get_node_by_index(tree, right);
+
+            if (key == right_node.key) {
+                rotate_left(tree, parent_idx, grandparent_idx, right);
+                true
+            } else {
+                let res = contains_node_subtree(tree, right, option::some(parent_idx), key);
+                if (!tree.single_splay) {
+                    rotate_left(tree, parent_idx, grandparent_idx, right);
+                };
+                res
+            }
         } else {
             false
         }
     }
 
-    public fun contains<V: store + drop>(tree: &SplayTree<V>, key: u64): bool {
-        let root = get_root(tree);
-        if (option::is_none(&root)) {
+    public fun contains<V: store + drop>(tree: &mut SplayTree<V>, key: u64): bool {
+        let maybe_root = get_root(tree);
+        if (option::is_none(&maybe_root)) {
             false
         } else {
-            contains_node_subtree(tree, *option::borrow(&root), key)
+            let root = *option::borrow(&maybe_root);
+            let root_node = get_mut_node_by_index(tree, root);
+            if (key == root_node.key) {
+                true
+            } else {
+                contains_node_subtree(tree, root, option::none<u64>(), key)
+            }
         }
     }
 
@@ -191,7 +264,7 @@ module flow::splay_tree {
             if (is_sentinel(parent_node.left)) {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-                parent_node.left = option::some(new_node_idx);
+                parent_node.left = guard(new_node_idx);
                 rotate_right(tree, parent_idx, grandparent_idx, new_node_idx);
             } else {
                 insert_child(tree, unguard(parent_node.left), option::some(parent_idx), node);
@@ -200,7 +273,7 @@ module flow::splay_tree {
                 }
             }
         } else if (node.key > parent_node.key) {
-            if (option::is_none(&parent_node.right)) {
+            if (is_sentinel(parent_node.right)) {
                 vector::push_back(&mut tree.nodes, node);
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
                 parent_node.right = guard(new_node_idx);
@@ -279,10 +352,10 @@ module flow::splay_tree {
         }
     }
 
-    public fun min<V: store + drop>(tree: &SplayTree<V>): &Node<V> {
+    public fun min<V: store + drop>(tree: &SplayTree<V>): &V {
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
         let min_idx = min_subtree(tree, *option::borrow(&get_root(tree)));
-        get_node_by_index(tree, min_idx)
+        &get_node_by_index(tree, min_idx).value
     }
 
     fun max_subtree<V: store + drop>(tree: &SplayTree<V>, idx: u64): u64 {
@@ -294,17 +367,17 @@ module flow::splay_tree {
         }
     }
 
-    public fun max<V: store + drop>(tree: &SplayTree<V>): &Node<V> {
+    public fun max<V: store + drop>(tree: &SplayTree<V>): &V {
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
         let max_idx = max_subtree(tree, *option::borrow(&get_root(tree)));
-        get_node_by_index(tree, max_idx)
+        &get_node_by_index(tree, max_idx).value
     }
 
     fun top<T: copy>(v: &vector<T>): T {
         *vector::borrow(v, vector::length(v) - 1)
     }
 
-    fun stack_left<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
+    fun traverse_left<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
         let maybe_left = option::some(parent_idx);
         while (option::is_some(&maybe_left)) {
             let current = *option::borrow(&maybe_left);
@@ -313,7 +386,7 @@ module flow::splay_tree {
         };
     }
 
-    fun stack_right<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
+    fun traverse_right<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
         let maybe_right = option::some(parent_idx);
         while (option::is_some(&maybe_right)) {
             let current = *option::borrow(&maybe_right);
@@ -322,24 +395,24 @@ module flow::splay_tree {
         };
     }
 
-    public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
+    public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &V {
         assert!(!iter.is_done, EITER_DONE);
         assert!(!iter.reverse, ENO_MESSAGE);
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
 
         if (vector::is_empty(&iter.stack)) {
             let current = *option::borrow(&get_root(tree));
-            stack_left(tree, iter, current);
+            traverse_left(tree, iter, current);
             let res = top(&iter.stack);
-            return get_node_by_index(tree, res)
+            return &get_node_by_index(tree, res).value
         };
         let current = top(&iter.stack);
         let maybe_right = get_right(tree, current);
         if (option::is_some(&maybe_right)) {
             current = *option::borrow(&maybe_right);
-            stack_left(tree, iter, current);
+            traverse_left(tree, iter, current);
             let res = top(&iter.stack);
-            return get_node_by_index(tree, res)
+            return &get_node_by_index(tree, res).value
         } else {
             let current = vector::pop_back(&mut iter.stack);
             let parent = top(&iter.stack);
@@ -352,7 +425,7 @@ module flow::splay_tree {
                     if (vector::length(&iter.stack) == 1) {
                         iter.is_done = true;
                     };
-                    return get_node_by_index(tree, parent)
+                    return &get_node_by_index(tree, parent).value
                 } else if (option::is_some(&maybe_parent_right) && *option::borrow(&maybe_parent_right) == current) {
                     current = vector::pop_back(&mut iter.stack);
                     parent = top(&iter.stack);
@@ -364,24 +437,24 @@ module flow::splay_tree {
         }
     }
 
-    public fun prev<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &Node<V> {
+    public fun prev<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &V {
         assert!(!iter.is_done, EITER_DONE);
         assert!(iter.reverse, ENO_MESSAGE);
         assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
 
         if (vector::is_empty(&iter.stack)) {
             let current = *option::borrow(&get_root(tree));
-            stack_right(tree, iter, current);
+            traverse_right(tree, iter, current);
             let res = top(&iter.stack);
-            return get_node_by_index(tree, res)
+            return &get_node_by_index(tree, res).value
         };
         let current = top(&iter.stack);
         let maybe_left = get_left(tree, current);
         if (option::is_some(&maybe_left)) {
             current = *option::borrow(&maybe_left);
-            stack_right(tree, iter, current);
+            traverse_right(tree, iter, current);
             let res = top(&iter.stack);
-            return get_node_by_index(tree, res)
+            return &get_node_by_index(tree, res).value
         } else {
             let current = vector::pop_back(&mut iter.stack);
             let parent = top(&iter.stack);
@@ -394,7 +467,7 @@ module flow::splay_tree {
                     if (vector::length(&iter.stack) == 1) {
                         iter.is_done = true;
                     };
-                    return get_node_by_index(tree, parent)
+                    return &get_node_by_index(tree, parent).value
                 } else if (option::is_some(&maybe_parent_left) && *option::borrow(&maybe_parent_left) == current) {
                     current = vector::pop_back(&mut iter.stack);
                     parent = top(&iter.stack);
@@ -410,7 +483,7 @@ module flow::splay_tree {
     fun test_init_tree() {
         let tree = init_tree<u64>(true);
 
-        assert!(option::is_none(&tree.root), ENO_MESSAGE);
+        assert!(is_sentinel(tree.root), ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
     }
 
@@ -420,20 +493,20 @@ module flow::splay_tree {
 
         assert!(node.key == 0, ENO_MESSAGE);
         assert!(node.value == 0, ENO_MESSAGE);
-        assert!(option::is_none(&node.left), ENO_MESSAGE);
-        assert!(option::is_none(&node.right), ENO_MESSAGE);
+        assert!(is_sentinel(node.left), ENO_MESSAGE);
+        assert!(is_sentinel(node.right), ENO_MESSAGE);
     }
 
     #[test]
     fun test_add_node() {
         let tree = init_tree<u64>(true);
 
-        assert!(option::is_none(&tree.root), ENO_MESSAGE);
+        assert!(is_sentinel(tree.root), ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 0, ENO_MESSAGE);
 
         insert(&mut tree, 0, 0);
 
-        assert!(option::is_some(&tree.root), ENO_MESSAGE);
+        assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 1, ENO_MESSAGE);
     }
 
@@ -487,11 +560,11 @@ module flow::splay_tree {
         let root_left = *option::borrow(&maybe_root_left);
 
         assert!(get_node_by_index(&tree, root_left).key == key1, ENO_MESSAGE);
-        assert!(get_node_by_index(&tree, *option::borrow(&get_node_by_index(&tree, root_left).left)).key == key0, ENO_MESSAGE);
+        assert!(get_node_by_index(&tree, unguard(get_node_by_index(&tree, root_left).left)).key == key0, ENO_MESSAGE);
 
-        assert!(*get(&tree, key0) == 0, ENO_MESSAGE);
-        assert!(*get(&tree, key1) == 1, ENO_MESSAGE);
-        assert!(*get(&tree, key2) == 2, ENO_MESSAGE);
+        assert!(*get(&mut tree, key0) == 0, ENO_MESSAGE);
+        assert!(*get(&mut tree, key1) == 1, ENO_MESSAGE);
+        assert!(*get(&mut tree, key2) == 2, ENO_MESSAGE);
     }
 
     #[test]
@@ -505,7 +578,7 @@ module flow::splay_tree {
         insert(&mut tree, 1, 1);
 
         let min = min(&tree);
-        assert!(min.key == 1, ENO_MESSAGE);
+        assert!(*min == 1, ENO_MESSAGE);
     }
 
     #[test]
@@ -519,7 +592,7 @@ module flow::splay_tree {
         insert(&mut tree, 1, 1);
 
         let max = max(&tree);
-        assert!(max.key == 5, ENO_MESSAGE);
+        assert!(*max == 5, ENO_MESSAGE);
     }
 
      #[test]
@@ -539,7 +612,7 @@ module flow::splay_tree {
          assert!(root_node.key == 0, ENO_MESSAGE);
 
          let maybe_root_right = root_node.right;
-         let root_right = *option::borrow(&maybe_root_right);
+         let root_right = unguard(maybe_root_right);
          let root_right_node = get_node_by_index(&tree, root_right);
          assert!(root_right_node.key == 1, ENO_MESSAGE);
 
@@ -556,20 +629,20 @@ module flow::splay_tree {
 
          let maybe_root_right = root_node.right;
 
-         assert!(option::is_some(&maybe_root_right), ENO_MESSAGE);
+         assert!(is_not_sentinel(maybe_root_right), ENO_MESSAGE);
 
-         let root_right = *option::borrow(&maybe_root_right);
+         let root_right = unguard(maybe_root_right);
          let root_right_node = get_node_by_index(&tree, root_right);
          assert!(root_right_node.key == 2, ENO_MESSAGE);
 
-         let child = *option::borrow(&root_right_node.left);
+         let child = unguard(root_right_node.left);
          let child_node = get_node_by_index(&tree, child);
 
          assert!(child_node.key == 1, ENO_MESSAGE);
 
-         assert!(*get(&tree, 0) == 0, ENO_MESSAGE);
-         assert!(*get(&tree, 1) == 1, ENO_MESSAGE);
-         assert!(*get(&tree, 2) == 2, ENO_MESSAGE);
+         assert!(*get(&mut tree, 0) == 0, ENO_MESSAGE);
+         assert!(*get(&mut tree, 1) == 1, ENO_MESSAGE);
+         assert!(*get(&mut tree, 2) == 2, ENO_MESSAGE);
      }
 
     #[test]
@@ -582,12 +655,12 @@ module flow::splay_tree {
         insert(&mut tree, 5, 5);
         insert(&mut tree, 1, 1);
 
-        assert!(contains(&tree, 1), ENO_MESSAGE);
-        assert!(contains(&tree, 2), ENO_MESSAGE);
-        assert!(contains(&tree, 3), ENO_MESSAGE);
-        assert!(contains(&tree, 4), ENO_MESSAGE);
-        assert!(contains(&tree, 5), ENO_MESSAGE);
-        assert!(!contains(&tree, 6), ENO_MESSAGE);
+        assert!(contains(&mut tree, 1), ENO_MESSAGE);
+        assert!(contains(&mut tree, 2), ENO_MESSAGE);
+        assert!(contains(&mut tree, 3), ENO_MESSAGE);
+        assert!(contains(&mut tree, 4), ENO_MESSAGE);
+        assert!(contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 6), ENO_MESSAGE);
     }
 
     #[test]
@@ -625,7 +698,7 @@ module flow::splay_tree {
         let i = 0;
         while (i < 6) {
             let next = next(&tree, &mut iter);
-            assert!(next.value == i, ENO_MESSAGE);
+            assert!(*next == i, ENO_MESSAGE);
             i = i + 1;
         };
     }
@@ -646,7 +719,7 @@ module flow::splay_tree {
         let i = 0;
         while (i < 6) {
             let next = next(&tree, &mut iter);
-            assert!(next.value == i, ENO_MESSAGE);
+            assert!(*next == i, ENO_MESSAGE);
             i = i + 1;
         };
     }
@@ -667,7 +740,7 @@ module flow::splay_tree {
         let i = 0;
         while (i < 6) {
             let next = next(&tree, &mut iter);
-            assert!(next.value == i, ENO_MESSAGE);
+            assert!(*next == i, ENO_MESSAGE);
             i = i + 1;
         };
     }
@@ -689,7 +762,7 @@ module flow::splay_tree {
         while (i >= 1) {
             i = i - 1;
             let prev = prev(&tree, &mut iter);
-            assert!(prev.value == i, ENO_MESSAGE);
+            assert!(*prev == i, ENO_MESSAGE);
         };
     }
 
@@ -710,7 +783,7 @@ module flow::splay_tree {
         while (i >= 1) {
             i = i - 1;
             let prev = prev(&tree, &mut iter);
-            assert!(prev.value == i, ENO_MESSAGE);
+            assert!(*prev == i, ENO_MESSAGE);
         };
     }
 
@@ -731,7 +804,7 @@ module flow::splay_tree {
         while (i >= 1) {
             i = i - 1;
             let prev = prev(&tree, &mut iter);
-            assert!(prev.value == i, ENO_MESSAGE);
+            assert!(*prev == i, ENO_MESSAGE);
         };
     }
 }
