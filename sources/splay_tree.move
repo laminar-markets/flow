@@ -158,25 +158,58 @@ module flow::splay_tree {
         }
     }
 
-    fun contains_node_subtree<V: store + drop>(tree: &SplayTree<V>, parent_idx: u64, key: u64): bool {
+    fun contains_node_subtree<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, key: u64): bool {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
-        if (key == parent_node.key) {
-            true
-        } else if (key < parent_node.key && option::is_some(&parent_node.left)) {
-            contains_node_subtree(tree, *option::borrow(&parent_node.left), key)
-        } else if (key > parent_node.key && option::is_some(&parent_node.right)) {
-            contains_node_subtree(tree, *option::borrow(&parent_node.right), key)
+        assert!(key != parent_node.key, ENO_MESSAGE);
+
+        let maybe_left = get_left(tree, parent_idx);
+        let maybe_right = get_right(tree, parent_idx);
+
+        if (key < parent_node.key && option::is_some(&maybe_left)) {
+            let left = *option::borrow(&maybe_left);
+            let left_node = get_node_by_index(tree, left);
+
+            if (key == left_node.key) {
+                rotate_right(tree, parent_idx, grandparent_idx, left);
+                true
+            } else {
+                let res = contains_node_subtree(tree, *option::borrow(&parent_node.left), option::some(parent_idx), key);
+                if (!tree.single_splay) {
+                    rotate_right(tree, parent_idx, grandparent_idx, left);
+                };
+                res
+            }
+        } else if (key > parent_node.key && option::is_some(&maybe_right)) {
+            let right = *option::borrow(&maybe_right);
+            let right_node = get_node_by_index(tree, right);
+
+            if (key == right_node.key) {
+                rotate_left(tree, parent_idx, grandparent_idx, right);
+                true
+            } else {
+                let res = contains_node_subtree(tree, right, option::some(parent_idx), key);
+                if (!tree.single_splay) {
+                    rotate_left(tree, parent_idx, grandparent_idx, right);
+                };
+                res
+            }
         } else {
             false
         }
     }
 
-    public fun contains<V: store + drop>(tree: &SplayTree<V>, key: u64): bool {
-        let root = get_root(tree);
-        if (option::is_none(&root)) {
+    public fun contains<V: store + drop>(tree: &mut SplayTree<V>, key: u64): bool {
+        let maybe_root = get_root(tree);
+        if (option::is_none(&maybe_root)) {
             false
         } else {
-            contains_node_subtree(tree, *option::borrow(&root), key)
+            let root = *option::borrow(&maybe_root);
+            let root_node = get_mut_node_by_index(tree, root);
+            if (key == root_node.key) {
+                true
+            } else {
+                contains_node_subtree(tree, root, option::none<u64>(), key)
+            }
         }
     }
 
@@ -579,12 +612,12 @@ module flow::splay_tree {
         insert(&mut tree, 5, 5);
         insert(&mut tree, 1, 1);
 
-        assert!(contains(&tree, 1), ENO_MESSAGE);
-        assert!(contains(&tree, 2), ENO_MESSAGE);
-        assert!(contains(&tree, 3), ENO_MESSAGE);
-        assert!(contains(&tree, 4), ENO_MESSAGE);
-        assert!(contains(&tree, 5), ENO_MESSAGE);
-        assert!(!contains(&tree, 6), ENO_MESSAGE);
+        assert!(contains(&mut tree, 1), ENO_MESSAGE);
+        assert!(contains(&mut tree, 2), ENO_MESSAGE);
+        assert!(contains(&mut tree, 3), ENO_MESSAGE);
+        assert!(contains(&mut tree, 4), ENO_MESSAGE);
+        assert!(contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 6), ENO_MESSAGE);
     }
 
     #[test]
