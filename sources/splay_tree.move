@@ -260,6 +260,54 @@ module flow::splay_tree {
         }
     }
 
+    fun delete_node<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>) {
+        if (option::is_some(&parent_idx)) {
+            let parent_idx = *option::borrow(&parent_idx);
+            let parent_node = get_mut_node_by_index(tree, parent_idx);
+
+            if (unguard(parent_node.left) == idx) {
+                parent_node.left = sentinel();
+            } else if (unguard(parent_node.right) == idx) {
+                parent_node.right = sentinel();
+            } else {
+                abort EPARENT_CHILD_MISMATCH
+            }
+        };
+
+        let node = get_node_by_index(tree, idx);
+
+        if (is_not_sentinel(node.right)) {
+            let right_leftmost = unguard(node.right);
+            while (option::is_some(&get_left(tree, right_leftmost))) {
+                right_leftmost = *option::borrow(&get_left(tree, right_leftmost));
+            };
+            vector::swap(&mut tree.nodes, idx, right_leftmost);
+            remove_node_by_index(tree, right_leftmost);
+        } else if (is_not_sentinel(node.left)) {
+            let left = unguard(node.left);
+            vector::swap(&mut tree.nodes, idx, left);
+            remove_node_by_index(tree, left);
+        } else {
+            // node has no children
+            remove_node_by_index(tree, idx);
+        }
+    }
+
+    fun delete_from_subtree<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>, key: u64) {
+        let node = get_node_by_index(tree, idx);
+        if (key == node.key) {
+            delete_node(tree, idx, parent_idx);
+        } else if (key < node.key && is_not_sentinel(node.left)) {
+            let left = unguard(node.left);
+            delete_from_subtree(tree, left, option::some(idx), key);
+        } else if (key > node.key && is_not_sentinel(node.right)) {
+            let right = unguard(node.right);
+            delete_from_subtree(tree, right, option::some(idx), key);
+        } else {
+            abort EKEY_NOT_FOUND
+        }
+    }
+
     public fun delete<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
         assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
         let root = unguard(tree.root);
@@ -282,6 +330,8 @@ module flow::splay_tree {
                 vector::swap(&mut tree.nodes, root, right_leftmost);
                 remove_node_by_index(tree, right_leftmost);
             };
+        } else {
+            delete_from_subtree(tree, root, option::none<u64>(), key);
         }
     }
 
