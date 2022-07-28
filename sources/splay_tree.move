@@ -97,6 +97,10 @@ module flow::splay_tree {
         }
     }
 
+    public fun iterator_is_done(iter: &Iterator): bool {
+        iter.is_done
+    }
+
     fun get_left<V: store + drop>(tree: &SplayTree<V>, idx: u64): Option<u64> {
         try_unguard(vector::borrow(&tree.nodes, idx).left)
     }
