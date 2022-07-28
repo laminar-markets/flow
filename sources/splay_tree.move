@@ -205,11 +205,8 @@ module flow::splay_tree {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
         assert!(key != parent_node.key, ENO_MESSAGE);
 
-        let maybe_left = get_left(tree, parent_idx);
-        let maybe_right = get_right(tree, parent_idx);
-
-        if (key < parent_node.key && option::is_some(&maybe_left)) {
-            let left = *option::borrow(&maybe_left);
+        if (key < parent_node.key && !is_sentinel(parent_node.left)) {
+            let left = unguard(parent_node.left);
             let left_node = get_node_by_index(tree, left);
 
             if (key == left_node.key) {
@@ -222,8 +219,8 @@ module flow::splay_tree {
                 };
                 res
             }
-        } else if (key > parent_node.key && option::is_some(&maybe_right)) {
-            let right = *option::borrow(&maybe_right);
+        } else if (key > parent_node.key && !is_sentinel(parent_node.right)) {
+            let right = unguard(parent_node.right);
             let right_node = get_node_by_index(tree, right);
 
             if (key == right_node.key) {
@@ -293,9 +290,9 @@ module flow::splay_tree {
             vector::push_back(&mut tree.nodes, node);
             set_root(tree, 0);
         } else {
-            let root = get_root(tree);
-            assert!(option::is_some(&root), ENO_MESSAGE);
-            insert_child(tree, *option::borrow(&root), option::none<u64>(), node);
+            assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
+            let root = unguard(tree.root);
+            insert_child(tree, root, option::none<u64>(), node);
         }
     }
 
@@ -314,9 +311,9 @@ module flow::splay_tree {
                 abort EPARENT_CHILD_MISMATCH
             }
         } else {
-            let root = get_root(tree);
-            assert!(option::is_some(&root), ENO_MESSAGE);
-            assert!(*option::borrow(&root) == parent_idx, ENO_MESSAGE);
+            assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
+            let root = unguard(tree.root);
+            assert!(root == parent_idx, ENO_MESSAGE);
             set_root(tree, child_idx);
         }
     }
@@ -336,9 +333,9 @@ module flow::splay_tree {
                 abort EPARENT_CHILD_MISMATCH
             }
         } else {
-            let root = get_root(tree);
-            assert!(option::is_some(&root), ENO_MESSAGE);
-            assert!(*option::borrow(&root) == parent_idx, ENO_MESSAGE);
+            assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
+            let root = unguard(tree.root);
+            assert!(root == parent_idx, ENO_MESSAGE);
             set_root(tree, child_idx);
         }
     }
