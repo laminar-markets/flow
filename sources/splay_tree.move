@@ -7,7 +7,7 @@ module flow::splay_tree {
     const EPARENT_CHILD_MISMATCH: u64 = 2;
     const EITER_DONE: u64 = 3;
 
-    const SENTINEL_VALUE: u64 = 0xFFFFFFFFFFFFFFFF;
+    const SENTINEL_VALUE: u64 = 0xffffffffffffffff;
 
     struct GuardedIdx has store, drop, copy {
         value: u64
@@ -22,7 +22,7 @@ module flow::splay_tree {
     }
 
     fun unguard(guard: GuardedIdx): u64 {
-        assert!(is_not_sentinel(guard), EKEY_NOT_FOUND);
+        assert!(!is_sentinel(guard), EKEY_NOT_FOUND);
         guard.value
     }
 
@@ -260,35 +260,59 @@ module flow::splay_tree {
         }
     }
 
-    fun remove_node<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>) {
-        if (option::is_some(&parent_idx)) {
-            let parent_idx = *option::borrow(&parent_idx);
-            let parent_node = get_mut_node_by_index(tree, parent_idx);
-
-            if (is_not_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
-                parent_node.left = sentinel();
-            } else if (is_not_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
-                parent_node.right = sentinel();
-            } else {
-                abort EPARENT_CHILD_MISMATCH
-            }
+    fun swap_nodes<V: store + drop>(tree: &mut SplayTree<V>, from: u64, to: u64) {
+        let from_left;
+        let from_right;
+        {
+            let node_from = get_node_by_index(tree, from);
+            from_left = node_from.left;
+            from_right = node_from.right;
         };
+        let node_to = get_mut_node_by_index(tree, to);
 
+        node_to.left = from_left;
+        node_to.right = from_right;
+
+        vector::swap(&mut tree.nodes, from, to);
+    }
+
+    fun remove_node<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>) {
         let node = get_node_by_index(tree, idx);
 
         if (is_not_sentinel(node.right)) {
-            let right_leftmost = unguard(node.right);
-            while (option::is_some(&get_left(tree, right_leftmost))) {
-                right_leftmost = *option::borrow(&get_left(tree, right_leftmost));
+            let right = unguard(node.right);
+            let maybe_right_leftmost = get_left(tree, right);
+            if (option::is_some(&maybe_right_leftmost)) {
+                let right_leftmost = *option::borrow(&maybe_right_leftmost);
+                let right_leftmost_parent = right;
+                while (option::is_some(&get_left(tree, right_leftmost))) {
+                    right_leftmost_parent = right_leftmost;
+                    right_leftmost = *option::borrow(&get_left(tree, right_leftmost));
+                };
+                swap_nodes(tree, idx, right_leftmost);
+                let right_leftmost_parent = get_mut_node_by_index(tree, right_leftmost_parent);
+                right_leftmost_parent.left = sentinel();
+                remove_node_by_index(tree, right_leftmost);
+            } else {
+                swap_nodes(tree, idx, right);
+                remove_node_by_index(tree, right);
             };
-            vector::swap(&mut tree.nodes, idx, right_leftmost);
-            remove_node_by_index(tree, right_leftmost);
         } else if (is_not_sentinel(node.left)) {
             let left = unguard(node.left);
-            vector::swap(&mut tree.nodes, idx, left);
+            swap_nodes(tree, idx, left);
             remove_node_by_index(tree, left);
         } else {
-            // node has no children
+            if (option::is_some(&parent_idx)) {
+                let parent_idx = *option::borrow(&parent_idx);
+                let parent_node = get_mut_node_by_index(tree, parent_idx);
+                if (is_not_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
+                    parent_node.left = sentinel();
+                } else if (is_not_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
+                    parent_node.right = sentinel();
+                } else {
+                    abort EPARENT_CHILD_MISMATCH
+                }
+            };
             remove_node_by_index(tree, idx);
         }
     }
@@ -327,7 +351,7 @@ module flow::splay_tree {
                 while (option::is_some(&get_left(tree, right_leftmost))) {
                     right_leftmost = *option::borrow(&get_left(tree, right_leftmost));
                 };
-                vector::swap(&mut tree.nodes, root, right_leftmost);
+                swap_nodes(tree, root, right_leftmost);
                 remove_node_by_index(tree, right_leftmost);
             };
         } else {
@@ -371,7 +395,7 @@ module flow::splay_tree {
             }
         }
     }
-    
+
     public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
         let node = init_node(key, value);
         if (is_sentinel(tree.root)) {
@@ -818,6 +842,34 @@ module flow::splay_tree {
         assert!(!contains(&mut tree, 3), ENO_MESSAGE);
         assert!(!contains(&mut tree, 4), ENO_MESSAGE);
         assert!(!contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(size(&tree) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_add_remove_nodes2() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+
+        assert!(contains(&mut tree, 0), ENO_MESSAGE);
+        assert!(contains(&mut tree, 1), ENO_MESSAGE);
+        assert!(contains(&mut tree, 2), ENO_MESSAGE);
+        assert!(contains(&mut tree, 3), ENO_MESSAGE);
+        assert!(contains(&mut tree, 4), ENO_MESSAGE);
+        assert!(contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(size(&tree) == 6, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        remove(&mut tree, 1);
+        remove(&mut tree, 2);
+        remove(&mut tree, 3);
+        remove(&mut tree, 4);
+        remove(&mut tree, 5);
         assert!(size(&tree) == 0, ENO_MESSAGE);
     }
 
