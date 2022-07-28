@@ -61,7 +61,7 @@ module flow::splay_tree {
         root: GuardedIdx,
         nodes: vector<Node<V>>,
         single_splay: bool,
-        deleted_nodes: vector<u64>
+        removed_nodes: vector<u64>
     }
 
     struct Iterator has drop {
@@ -75,7 +75,7 @@ module flow::splay_tree {
             root: sentinel(),
             nodes: vector::empty<Node<V>>(),
             single_splay,
-            deleted_nodes: vector::empty<u64>(),
+            removed_nodes: vector::empty<u64>(),
         }
     }
 
@@ -131,7 +131,7 @@ module flow::splay_tree {
     fun remove_node_by_index<V: store + drop>(tree: &mut SplayTree<V>, idx: u64) {
         // do not actually remove node from the nodes vector in tree, as that would require shifting every index
         // stored within a node struct in the tree.
-        vector::push_back(&mut tree.deleted_nodes, idx);
+        vector::push_back(&mut tree.removed_nodes, idx);
     }
 
     fun get_idx_subtree<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, key: u64): u64 {
@@ -175,7 +175,7 @@ module flow::splay_tree {
     }
 
     public fun size<V: store + drop>(tree: &SplayTree<V>): u64 {
-        vector::length(&tree.nodes) - vector::length(&tree.deleted_nodes)
+        vector::length(&tree.nodes) - vector::length(&tree.removed_nodes)
     }
 
     public fun get<V: store + drop>(tree: &mut SplayTree<V>, key: u64): &V {
@@ -260,7 +260,7 @@ module flow::splay_tree {
         }
     }
 
-    fun delete_node<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>) {
+    fun remove_node<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>) {
         if (option::is_some(&parent_idx)) {
             let parent_idx = *option::borrow(&parent_idx);
             let parent_node = get_mut_node_by_index(tree, parent_idx);
@@ -293,22 +293,22 @@ module flow::splay_tree {
         }
     }
 
-    fun delete_from_subtree<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>, key: u64) {
+    fun remove_from_subtree<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>, key: u64) {
         let node = get_node_by_index(tree, idx);
         if (key == node.key) {
-            delete_node(tree, idx, parent_idx);
+            remove_node(tree, idx, parent_idx);
         } else if (key < node.key && is_not_sentinel(node.left)) {
             let left = unguard(node.left);
-            delete_from_subtree(tree, left, option::some(idx), key);
+            remove_from_subtree(tree, left, option::some(idx), key);
         } else if (key > node.key && is_not_sentinel(node.right)) {
             let right = unguard(node.right);
-            delete_from_subtree(tree, right, option::some(idx), key);
+            remove_from_subtree(tree, right, option::some(idx), key);
         } else {
             abort EKEY_NOT_FOUND
         }
     }
 
-    public fun delete<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
+    public fun remove<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
         assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
         let root = unguard(tree.root);
         let root_node = get_node_by_index(tree, root);
@@ -331,7 +331,7 @@ module flow::splay_tree {
                 remove_node_by_index(tree, right_leftmost);
             };
         } else {
-            delete_from_subtree(tree, root, option::none<u64>(), key);
+            remove_from_subtree(tree, root, option::none<u64>(), key);
         }
     }
 
@@ -375,7 +375,7 @@ module flow::splay_tree {
     public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
         let node = init_node(key, value);
         if (is_sentinel(tree.root)) {
-            assert!(vector::length(&tree.nodes) - vector::length(&tree.deleted_nodes) == 0, ENO_MESSAGE);
+            assert!(vector::length(&tree.nodes) - vector::length(&tree.removed_nodes) == 0, ENO_MESSAGE);
             vector::push_back(&mut tree.nodes, node);
             set_root(tree, 0);
         } else {
@@ -383,10 +383,10 @@ module flow::splay_tree {
             let root = unguard(tree.root);
 
             let new_node_idx;
-            if (vector::is_empty(&tree.deleted_nodes)) {
+            if (vector::is_empty(&tree.removed_nodes)) {
                 new_node_idx = vector::length(&tree.nodes);
             } else {
-                new_node_idx = pop<u64>(&mut tree.deleted_nodes);
+                new_node_idx = pop<u64>(&mut tree.removed_nodes);
             };
 
             insert_child(tree, root, option::none<u64>(), new_node_idx, node);
