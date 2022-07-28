@@ -260,6 +260,31 @@ module flow::splay_tree {
         }
     }
 
+    public fun delete<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
+        assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
+        let root = unguard(tree.root);
+        let root_node = get_node_by_index(tree, root);
+
+        if (key == root_node.key) {
+            if (is_sentinel(root_node.right)) {
+                if (is_sentinel(root_node.left)) {
+                    tree.root = sentinel();
+                } else {
+                    let left = unguard(root_node.left);
+                    tree.root = guard(left);
+                };
+                remove_node_by_index(tree, root);
+            } else {
+                let right_leftmost = unguard(root_node.right);
+                while (option::is_some(&get_left(tree, right_leftmost))) {
+                    right_leftmost = *option::borrow(&get_left(tree, right_leftmost));
+                };
+                vector::swap(&mut tree.nodes, root, right_leftmost);
+                remove_node_by_index(tree, right_leftmost);
+            };
+        }
+    }
+
     fun pop<T: copy + drop>(v: &mut vector<T>): T {
         assert!(!vector::is_empty(v), ENO_MESSAGE);
         let first = *vector::borrow(v, 0);
@@ -300,8 +325,7 @@ module flow::splay_tree {
     public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
         let node = init_node(key, value);
         if (is_sentinel(tree.root)) {
-            assert!(vector::is_empty(&tree.nodes), ENO_MESSAGE);
-            assert!(vector::is_empty(&tree.deleted_nodes), ENO_MESSAGE);
+            assert!(vector::length(&tree.nodes) - vector::length(&tree.deleted_nodes) == 0, ENO_MESSAGE);
             vector::push_back(&mut tree.nodes, node);
             set_root(tree, 0);
         } else {
