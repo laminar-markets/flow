@@ -46,9 +46,6 @@ module flow::splay_tree {
         guard.value == SENTINEL_VALUE
     }
 
-    fun is_not_sentinel(guard: GuardedIdx): bool {
-        !is_sentinel(guard)
-    }
 
     struct Node<V: store + drop> has store, drop {
         key: u64,
@@ -279,7 +276,7 @@ module flow::splay_tree {
     fun remove_node<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>) {
         let node = get_node_by_index(tree, idx);
 
-        if (is_not_sentinel(node.right)) {
+        if (!is_sentinel(node.right)) {
             let right = unguard(node.right);
             let maybe_right_leftmost = get_left(tree, right);
             if (option::is_some(&maybe_right_leftmost)) {
@@ -297,7 +294,7 @@ module flow::splay_tree {
                 swap_nodes(tree, idx, right);
                 remove_node_by_index(tree, right);
             };
-        } else if (is_not_sentinel(node.left)) {
+        } else if (!is_sentinel(node.left)) {
             let left = unguard(node.left);
             swap_nodes(tree, idx, left);
             remove_node_by_index(tree, left);
@@ -305,9 +302,9 @@ module flow::splay_tree {
             if (option::is_some(&parent_idx)) {
                 let parent_idx = *option::borrow(&parent_idx);
                 let parent_node = get_mut_node_by_index(tree, parent_idx);
-                if (is_not_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
+                if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
                     parent_node.left = sentinel();
-                } else if (is_not_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
+                } else if (!is_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
                     parent_node.right = sentinel();
                 } else {
                     abort EPARENT_CHILD_MISMATCH
@@ -321,10 +318,10 @@ module flow::splay_tree {
         let node = get_node_by_index(tree, idx);
         if (key == node.key) {
             remove_node(tree, idx, parent_idx);
-        } else if (key < node.key && is_not_sentinel(node.left)) {
+        } else if (key < node.key && !is_sentinel(node.left)) {
             let left = unguard(node.left);
             remove_from_subtree(tree, left, option::some(idx), key);
-        } else if (key > node.key && is_not_sentinel(node.right)) {
+        } else if (key > node.key && !is_sentinel(node.right)) {
             let right = unguard(node.right);
             remove_from_subtree(tree, right, option::some(idx), key);
         } else {
@@ -333,7 +330,7 @@ module flow::splay_tree {
     }
 
     public fun remove<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
-        assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
+        assert!(!is_sentinel(tree.root), ENO_MESSAGE);
         let root = unguard(tree.root);
         let root_node = get_node_by_index(tree, root);
 
@@ -403,7 +400,7 @@ module flow::splay_tree {
             vector::push_back(&mut tree.nodes, node);
             set_root(tree, 0);
         } else {
-            assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
+            assert!(!is_sentinel(tree.root), ENO_MESSAGE);
             let root = unguard(tree.root);
 
             let new_node_idx;
@@ -432,7 +429,7 @@ module flow::splay_tree {
                 abort EPARENT_CHILD_MISMATCH
             }
         } else {
-            assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
+            assert!(!is_sentinel(tree.root), ENO_MESSAGE);
             let root = unguard(tree.root);
             assert!(root == parent_idx, ENO_MESSAGE);
             set_root(tree, child_idx);
@@ -454,7 +451,7 @@ module flow::splay_tree {
                 abort EPARENT_CHILD_MISMATCH
             }
         } else {
-            assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
+            assert!(!is_sentinel(tree.root), ENO_MESSAGE);
             let root = unguard(tree.root);
             assert!(root == parent_idx, ENO_MESSAGE);
             set_root(tree, child_idx);
@@ -624,7 +621,7 @@ module flow::splay_tree {
 
         insert(&mut tree, 0, 0);
 
-        assert!(is_not_sentinel(tree.root), ENO_MESSAGE);
+        assert!(!is_sentinel(tree.root), ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 1, ENO_MESSAGE);
     }
 
@@ -747,7 +744,7 @@ module flow::splay_tree {
 
          let maybe_root_right = root_node.right;
 
-         assert!(is_not_sentinel(maybe_root_right), ENO_MESSAGE);
+         assert!(!is_sentinel(maybe_root_right), ENO_MESSAGE);
 
          let root_right = unguard(maybe_root_right);
          let root_right_node = get_node_by_index(&tree, root_right);
@@ -836,6 +833,7 @@ module flow::splay_tree {
         remove(&mut tree, 3);
         remove(&mut tree, 4);
         remove(&mut tree, 5);
+
         assert!(!contains(&mut tree, 0), ENO_MESSAGE);
         assert!(!contains(&mut tree, 1), ENO_MESSAGE);
         assert!(!contains(&mut tree, 2), ENO_MESSAGE);
@@ -870,6 +868,48 @@ module flow::splay_tree {
         remove(&mut tree, 3);
         remove(&mut tree, 4);
         remove(&mut tree, 5);
+
+        assert!(!contains(&mut tree, 0), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 1), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 2), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 3), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 4), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(size(&tree) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_add_remove_nodes3() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        assert!(contains(&mut tree, 0), ENO_MESSAGE);
+        assert!(contains(&mut tree, 1), ENO_MESSAGE);
+        assert!(contains(&mut tree, 2), ENO_MESSAGE);
+        assert!(contains(&mut tree, 3), ENO_MESSAGE);
+        assert!(contains(&mut tree, 4), ENO_MESSAGE);
+        assert!(contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(size(&tree) == 6, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        remove(&mut tree, 1);
+        remove(&mut tree, 2);
+        remove(&mut tree, 3);
+        remove(&mut tree, 4);
+        remove(&mut tree, 5);
+
+        assert!(!contains(&mut tree, 0), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 1), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 2), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 3), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 4), ENO_MESSAGE);
+        assert!(!contains(&mut tree, 5), ENO_MESSAGE);
         assert!(size(&tree) == 0, ENO_MESSAGE);
     }
 
