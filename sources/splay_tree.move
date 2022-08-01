@@ -606,9 +606,6 @@ module flow::splay_tree {
                 let maybe_parent_right = get_right(tree, parent);
 
                 if (option::is_some(&maybe_parent_left) && *option::borrow(&maybe_parent_left) == current) {
-//                    if (vector::length(&iter.stack) == 1) {
-//                        iter.is_done = true;
-//                    };
                     return next_check_return(tree, iter, parent)
                 } else if (option::is_some(&maybe_parent_right) && *option::borrow(&maybe_parent_right) == current) {
                     current = vector::pop_back(&mut iter.stack);
@@ -661,9 +658,6 @@ module flow::splay_tree {
                 let maybe_parent_right = get_right(tree, parent);
 
                 if (option::is_some(&maybe_parent_right) && *option::borrow(&maybe_parent_right) == current) {
-                    if (vector::length(&iter.stack) == 1) {
-                        iter.is_done = true;
-                    };
                     return prev_check_return(tree, iter, parent)
                 } else if (option::is_some(&maybe_parent_left) && *option::borrow(&maybe_parent_left) == current) {
                     current = vector::pop_back(&mut iter.stack);
