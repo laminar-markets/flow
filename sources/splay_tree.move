@@ -717,9 +717,9 @@ module flow::splay_tree {
         assert!(get_node_by_index(&tree, root_left).key == key1, ENO_MESSAGE);
         assert!(get_node_by_index(&tree, unguard(get_node_by_index(&tree, root_left).left)).key == key0, ENO_MESSAGE);
 
-        assert!(*get(&mut tree, key0) == 0, ENO_MESSAGE);
-        assert!(*get(&mut tree, key1) == 1, ENO_MESSAGE);
-        assert!(*get(&mut tree, key2) == 2, ENO_MESSAGE);
+        assert!(*get(&tree, key0) == 0, ENO_MESSAGE);
+        assert!(*get(&tree, key1) == 1, ENO_MESSAGE);
+        assert!(*get(&tree, key2) == 2, ENO_MESSAGE);
     }
 
     #[test]
@@ -795,9 +795,9 @@ module flow::splay_tree {
 
          assert!(child_node.key == 1, ENO_MESSAGE);
 
-         assert!(*get(&mut tree, 0) == 0, ENO_MESSAGE);
-         assert!(*get(&mut tree, 1) == 1, ENO_MESSAGE);
-         assert!(*get(&mut tree, 2) == 2, ENO_MESSAGE);
+         assert!(*get(&tree, 0) == 0, ENO_MESSAGE);
+         assert!(*get(&tree, 1) == 1, ENO_MESSAGE);
+         assert!(*get(&tree, 2) == 2, ENO_MESSAGE);
      }
 
     #[test]
@@ -810,12 +810,12 @@ module flow::splay_tree {
         insert(&mut tree, 5, 5);
         insert(&mut tree, 1, 1);
 
-        assert!(contains(&mut tree, 1), ENO_MESSAGE);
-        assert!(contains(&mut tree, 2), ENO_MESSAGE);
-        assert!(contains(&mut tree, 3), ENO_MESSAGE);
-        assert!(contains(&mut tree, 4), ENO_MESSAGE);
-        assert!(contains(&mut tree, 5), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 6), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
+        assert!(!contains(&tree, 6), ENO_MESSAGE);
     }
 
     #[test]
@@ -823,11 +823,11 @@ module flow::splay_tree {
         let tree = init_tree<u64>(true);
 
         insert(&mut tree, 0, 0);
-        assert!(contains(&mut tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 0), ENO_MESSAGE);
         assert!(size(&tree) == 1, ENO_MESSAGE);
 
         remove(&mut tree, 0);
-        assert!(!contains(&mut tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
         assert!(size(&tree) == 0, ENO_MESSAGE);
     }
 
@@ -837,14 +837,14 @@ module flow::splay_tree {
 
         insert(&mut tree, 0, 0);
         insert(&mut tree, 1, 1);
-        assert!(contains(&mut tree, 0), ENO_MESSAGE);
-        assert!(contains(&mut tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
         assert!(size(&tree) == 2, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
-        assert!(!contains(&mut tree, 0), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
         assert!(size(&tree) == 0, ENO_MESSAGE);
     }
 
@@ -859,12 +859,12 @@ module flow::splay_tree {
         insert(&mut tree, 4, 4);
         insert(&mut tree, 5, 5);
 
-        assert!(contains(&mut tree, 0), ENO_MESSAGE);
-        assert!(contains(&mut tree, 1), ENO_MESSAGE);
-        assert!(contains(&mut tree, 2), ENO_MESSAGE);
-        assert!(contains(&mut tree, 3), ENO_MESSAGE);
-        assert!(contains(&mut tree, 4), ENO_MESSAGE);
-        assert!(contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
         assert!(size(&tree) == 6, ENO_MESSAGE);
 
         remove(&mut tree, 0);
@@ -874,12 +874,12 @@ module flow::splay_tree {
         remove(&mut tree, 4);
         remove(&mut tree, 5);
 
-        assert!(!contains(&mut tree, 0), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 1), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 2), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 3), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 4), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
         assert!(size(&tree) == 0, ENO_MESSAGE);
     }
 
@@ -894,12 +894,12 @@ module flow::splay_tree {
         insert(&mut tree, 1, 1);
         insert(&mut tree, 3, 3);
 
-        assert!(contains(&mut tree, 0), ENO_MESSAGE);
-        assert!(contains(&mut tree, 1), ENO_MESSAGE);
-        assert!(contains(&mut tree, 2), ENO_MESSAGE);
-        assert!(contains(&mut tree, 3), ENO_MESSAGE);
-        assert!(contains(&mut tree, 4), ENO_MESSAGE);
-        assert!(contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
         assert!(size(&tree) == 6, ENO_MESSAGE);
 
         remove(&mut tree, 0);
@@ -909,49 +909,49 @@ module flow::splay_tree {
         remove(&mut tree, 4);
         remove(&mut tree, 5);
 
-        assert!(!contains(&mut tree, 0), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 1), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 2), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 3), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 4), ENO_MESSAGE);
-        assert!(!contains(&mut tree, 5), ENO_MESSAGE);
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
         assert!(size(&tree) == 0, ENO_MESSAGE);
     }
 
-//    #[test]
-//    fun test_add_remove_nodes3() {
-//        let tree = init_tree<u64>(true);
-//
-//        insert(&mut tree, 2, 2);
-//        insert(&mut tree, 3, 3);
-//        insert(&mut tree, 4, 4);
-//        insert(&mut tree, 0, 0);
-//        insert(&mut tree, 5, 5);
-//        insert(&mut tree, 1, 1);
-//
-//        assert!(contains(&mut tree, 0), ENO_MESSAGE);
-//        assert!(contains(&mut tree, 1), ENO_MESSAGE);
-//        assert!(contains(&mut tree, 2), ENO_MESSAGE);
-//        assert!(contains(&mut tree, 3), ENO_MESSAGE);
-//        assert!(contains(&mut tree, 4), ENO_MESSAGE);
-//        assert!(contains(&mut tree, 5), ENO_MESSAGE);
-//        assert!(size(&tree) == 6, ENO_MESSAGE);
-//
-//        remove(&mut tree, 0);
-//        remove(&mut tree, 1);
-//        remove(&mut tree, 2);
-//        remove(&mut tree, 3);
-//        remove(&mut tree, 4);
-//        remove(&mut tree, 5);
-//
-//        assert!(!contains(&mut tree, 0), ENO_MESSAGE);
-//        assert!(!contains(&mut tree, 1), ENO_MESSAGE);
-//        assert!(!contains(&mut tree, 2), ENO_MESSAGE);
-//        assert!(!contains(&mut tree, 3), ENO_MESSAGE);
-//        assert!(!contains(&mut tree, 4), ENO_MESSAGE);
-//        assert!(!contains(&mut tree, 5), ENO_MESSAGE);
-//        assert!(size(&tree) == 0, ENO_MESSAGE);
-//    }
+    #[test]
+    fun test_add_remove_nodes3() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
+        assert!(size(&tree) == 6, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        remove(&mut tree, 1);
+        remove(&mut tree, 2);
+        remove(&mut tree, 3);
+        remove(&mut tree, 4);
+        remove(&mut tree, 5);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
+        assert!(size(&tree) == 0, ENO_MESSAGE);
+    }
 
     #[test]
     fun test_get_mut() {
@@ -960,7 +960,7 @@ module flow::splay_tree {
         let mutable_node = get_mut(&mut tree, 2);
         assert!(*mutable_node == 2, ENO_MESSAGE);
         *mutable_node = 3;
-        let node = get(&mut tree, 2);
+        let node = get(&tree, 2);
         assert!(*node == 3, ENO_MESSAGE);
     }
 
