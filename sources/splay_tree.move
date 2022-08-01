@@ -242,28 +242,20 @@ module flow::splay_tree {
 
                 let right_leftmost_parent_node = get_mut_node_by_index(tree, right_leftmost_parent);
                 right_leftmost_parent_node.left = sentinel();
-
-                remove_node_by_index(tree, idx);
             } else {
                 move_parent_pointer(tree, idx, parent_idx, guard(right));
 
                 let right_node = get_mut_node_by_index(tree, right);
                 right_node.left = maybe_left;
-
-                remove_node_by_index(tree, idx);
             };
         } else if (!is_sentinel(maybe_left) && is_sentinel(maybe_right)) {
-            let left = unguard(maybe_left);
-            move_parent_pointer(tree, idx, parent_idx, guard(left));
-            remove_node_by_index(tree, idx);
+            move_parent_pointer(tree, idx, parent_idx, maybe_left);
         } else if (is_sentinel(maybe_left) && !is_sentinel(maybe_right)) {
-            let right = unguard(maybe_right);
-            move_parent_pointer(tree, idx, parent_idx, guard(right));
-            remove_node_by_index(tree, idx);
+            move_parent_pointer(tree, idx, parent_idx, maybe_right);
         } else {
             move_parent_pointer(tree, idx, parent_idx, sentinel());
-            remove_node_by_index(tree, idx);
-        }
+        };
+        remove_node_by_index(tree, idx);
     }
 
     fun remove_from_subtree<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>, key: u64) {
@@ -271,13 +263,9 @@ module flow::splay_tree {
         if (key == node.key) {
             remove_node(tree, idx, parent_idx);
         } else if (key < node.key && !is_sentinel(node.left)) {
-            let maybe_left = try_unguard(node.left);
-            let left = *option::borrow(&maybe_left);
-            remove_from_subtree(tree, left, option::some(idx), key);
+            remove_from_subtree(tree, unguard(node.left), option::some(idx), key);
         } else if (key > node.key && !is_sentinel(node.right)) {
-            let maybe_right = try_unguard(node.right);
-            let right = *option::borrow(&maybe_right);
-            remove_from_subtree(tree, right, option::some(idx), key);
+            remove_from_subtree(tree, unguard(node.right), option::some(idx), key);
         } else {
             abort EKEY_NOT_FOUND
         }
