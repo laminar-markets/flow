@@ -369,33 +369,80 @@ module flow::splay_tree {
         first
     }
 
-    fun insert_child<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, new_node_idx: u64, node: Node<V>) {
+    fun insert_child<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, idx: u64, key: u64, value: V) {
         let parent_node = vector::borrow(&tree.nodes, parent_idx);
 
-        if (node.key < parent_node.key) {
+        if (key < parent_node.key) {
             if (is_sentinel(parent_node.left)) {
-                vector::push_back(&mut tree.nodes, node);
+                if (idx >= vector::length(&tree.nodes)) {
+                    let node = init_node(key, value);
+                    vector::push_back(&mut tree.nodes, node);
+                } else {
+                    let prev_node = vector::borrow_mut(&mut tree.nodes, idx);
+                    prev_node.key = key;
+                    prev_node.value = value;
+                    prev_node.left = sentinel();
+                    prev_node.right = sentinel();
+                };
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-                parent_node.left = guard(new_node_idx);
-                rotate_right(tree, parent_idx, grandparent_idx, new_node_idx);
+                parent_node.left = guard(idx);
+                rotate_right(tree, parent_idx, grandparent_idx, idx);
             } else {
-                insert_child(tree, unguard(parent_node.left), option::some(parent_idx), new_node_idx, node);
+                insert_child(tree, unguard(parent_node.left), option::some(parent_idx), idx, key, value);
                 if (!tree.single_splay) {
-                    rotate_right(tree, parent_idx, grandparent_idx, new_node_idx);
+                    rotate_right(tree, parent_idx, grandparent_idx, idx);
                 }
             }
-        } else if (node.key > parent_node.key) {
+        } else if (key > parent_node.key) {
             if (is_sentinel(parent_node.right)) {
-                vector::push_back(&mut tree.nodes, node);
+                if (idx >= vector::length(&tree.nodes)) {
+                    let node = init_node(key, value);
+                    vector::push_back(&mut tree.nodes, node);
+                } else {
+                    let prev_node = vector::borrow_mut(&mut tree.nodes, idx);
+                    prev_node.key = key;
+                    prev_node.value = value;
+                    prev_node.left = sentinel();
+                    prev_node.right = sentinel();
+                };
                 let parent_node = vector::borrow_mut(&mut tree.nodes, parent_idx);
-                parent_node.right = guard(new_node_idx);
-                rotate_left(tree, parent_idx, grandparent_idx, new_node_idx);
+                parent_node.right = guard(idx);
+                rotate_left(tree, parent_idx, grandparent_idx, idx);
             } else {
-                insert_child(tree, unguard(parent_node.right), option::some(parent_idx), new_node_idx, node);
+                insert_child(tree, unguard(parent_node.right), option::some(parent_idx), idx, key, value);
                 if (!tree.single_splay) {
-                    rotate_left(tree, parent_idx, grandparent_idx, new_node_idx);
+                    rotate_left(tree, parent_idx, grandparent_idx, idx);
                 }
             }
+        }
+    }
+
+    public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
+        if (is_sentinel(tree.root)) {
+            assert!(vector::length(&tree.nodes) - vector::length(&tree.removed_nodes) == 0, ENO_MESSAGE);
+            let node = init_node(key, value);
+            vector::push_back(&mut tree.nodes, node);
+            set_root(tree, 0);
+            update_min(tree, key, 0);
+            update_max(tree, key, 0);
+        } else {
+            assert!(!is_sentinel(tree.root), ENO_MESSAGE);
+            assert!(!is_sentinel(tree.min), ENO_MESSAGE);
+            assert!(!is_sentinel(tree.max), ENO_MESSAGE);
+
+            let root = unguard(tree.root);
+
+            let idx;
+            if (vector::is_empty(&tree.removed_nodes)) {
+                idx = vector::length(&tree.nodes);
+            } else {
+                idx = pop<u64>(&mut tree.removed_nodes);
+            };
+
+            update_min(tree, key, idx);
+            update_max(tree, key, idx);
+
+            insert_child(tree, root, option::none<u64>(), idx, key, value);
         }
     }
 
@@ -422,35 +469,6 @@ module flow::splay_tree {
             if (key > max_node.key) {
                 tree.max = guard(idx);
             };
-        }
-    }
-
-    public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
-        let node = init_node(key, value);
-        if (is_sentinel(tree.root)) {
-            assert!(vector::length(&tree.nodes) - vector::length(&tree.removed_nodes) == 0, ENO_MESSAGE);
-            vector::push_back(&mut tree.nodes, node);
-            set_root(tree, 0);
-            update_min(tree, key, 0);
-            update_max(tree, key, 0);
-        } else {
-            assert!(!is_sentinel(tree.root), ENO_MESSAGE);
-            assert!(!is_sentinel(tree.min), ENO_MESSAGE);
-            assert!(!is_sentinel(tree.max), ENO_MESSAGE);
-
-            let root = unguard(tree.root);
-
-            let new_node_idx;
-            if (vector::is_empty(&tree.removed_nodes)) {
-                new_node_idx = vector::length(&tree.nodes);
-            } else {
-                new_node_idx = pop<u64>(&mut tree.removed_nodes);
-            };
-
-            update_min(tree, key, new_node_idx);
-            update_max(tree, key, new_node_idx);
-
-            insert_child(tree, root, option::none<u64>(), new_node_idx, node);
         }
     }
 
@@ -1160,5 +1178,51 @@ module flow::splay_tree {
         let prev = prev(&tree, &mut iter);
         assert!(*prev == i, ENO_MESSAGE);
         assert!(!has_next(&iter), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_size_after_insert_remove1() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        assert!(size(&tree) == 1, ENO_MESSAGE);
+
+        insert(&mut tree, 1, 1);
+        assert!(size(&tree) == 2, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        assert!(size(&tree) == 1, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
+        assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
+
+        insert(&mut tree, 0, 0);
+        assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
+        assert!(vector::length(&tree.removed_nodes) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_size_after_insert_remove2() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 1, 1);
+        assert!(size(&tree) == 3, ENO_MESSAGE);
+
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        assert!(size(&tree) == 5, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        remove(&mut tree, 1);
+        assert!(size(&tree) == 3, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
+        assert!(vector::length(&tree.removed_nodes) == 2, ENO_MESSAGE);
+
+        insert(&mut tree, 0, 0);
+        assert!(size(&tree) == 4, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
+        assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
     }
 }
