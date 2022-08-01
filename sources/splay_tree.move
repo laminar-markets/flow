@@ -201,6 +201,22 @@ module flow::splay_tree {
         }
     }
 
+    fun move_parent_pointer<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>, move_to: GuardedIdx) {
+        if (option::is_some(&parent_idx)) {
+            let parent_idx = *option::borrow(&parent_idx);
+            let parent_node = get_mut_node_by_index(tree, parent_idx);
+            if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
+                parent_node.left = move_to;
+            } else if (!is_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
+                parent_node.right = move_to;
+            } else {
+                abort EPARENT_CHILD_MISMATCH
+            }
+        } else {
+            tree.root = move_to;
+        };
+    }
+
     fun remove_node<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>) {
         let (maybe_left, maybe_right) = {
             let node = get_node_by_index(tree, idx);
@@ -218,19 +234,7 @@ module flow::splay_tree {
                     right_leftmost = *option::borrow(&get_left(tree, right_leftmost));
                 };
 
-                if (option::is_some(&parent_idx)) {
-                    let parent_idx = *option::borrow(&parent_idx);
-                    let parent_node = get_mut_node_by_index(tree, parent_idx);
-                    if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
-                        parent_node.left = guard(right_leftmost);
-                    } else if (!is_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
-                        parent_node.right = guard(right_leftmost);
-                    } else {
-                        abort EPARENT_CHILD_MISMATCH
-                    }
-                } else {
-                    set_root(tree, right_leftmost);
-                };
+                move_parent_pointer(tree, idx, parent_idx, guard(right_leftmost));
 
                 let right_leftmost_node = get_mut_node_by_index(tree, right_leftmost);
                 right_leftmost_node.left = maybe_left;
@@ -241,19 +245,7 @@ module flow::splay_tree {
 
                 remove_node_by_index(tree, idx);
             } else {
-                if (option::is_some(&parent_idx)) {
-                    let parent_idx = *option::borrow(&parent_idx);
-                    let parent_node = get_mut_node_by_index(tree, parent_idx);
-                    if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
-                        parent_node.left = guard(right);
-                    } else if (!is_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
-                        parent_node.right = guard(right);
-                    } else {
-                        abort EPARENT_CHILD_MISMATCH
-                    }
-                } else {
-                    set_root(tree, right);
-                };
+                move_parent_pointer(tree, idx, parent_idx, guard(right));
 
                 let right_node = get_mut_node_by_index(tree, right);
                 right_node.left = maybe_left;
@@ -262,50 +254,14 @@ module flow::splay_tree {
             };
         } else if (!is_sentinel(maybe_left) && is_sentinel(maybe_right)) {
             let left = unguard(maybe_left);
-            if (option::is_some(&parent_idx)) {
-                let parent_idx = *option::borrow(&parent_idx);
-                let parent_node = get_mut_node_by_index(tree, parent_idx);
-                if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
-                    parent_node.left = guard(left);
-                } else if (!is_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
-                    parent_node.right = guard(left);
-                } else {
-                    abort EPARENT_CHILD_MISMATCH
-                }
-            } else {
-                set_root(tree, left);
-            };
+            move_parent_pointer(tree, idx, parent_idx, guard(left));
             remove_node_by_index(tree, idx);
         } else if (is_sentinel(maybe_left) && !is_sentinel(maybe_right)) {
             let right = unguard(maybe_right);
-            if (option::is_some(&parent_idx)) {
-                let parent_idx = *option::borrow(&parent_idx);
-                let parent_node = get_mut_node_by_index(tree, parent_idx);
-                if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
-                    parent_node.left = guard(right);
-                } else if (!is_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
-                    parent_node.right = guard(right);
-                } else {
-                    abort EPARENT_CHILD_MISMATCH
-                }
-            } else {
-                set_root(tree, idx);
-            };
+            move_parent_pointer(tree, idx, parent_idx, guard(right));
             remove_node_by_index(tree, idx);
         } else {
-            if (option::is_some(&parent_idx)) {
-                let parent_idx = *option::borrow(&parent_idx);
-                let parent_node = get_mut_node_by_index(tree, parent_idx);
-                if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
-                    parent_node.left = sentinel();
-                } else if (!is_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
-                    parent_node.right = sentinel();
-                } else {
-                    abort EPARENT_CHILD_MISMATCH
-                }
-            } else {
-                tree.root = sentinel();
-            };
+            move_parent_pointer(tree, idx, parent_idx, sentinel());
             remove_node_by_index(tree, idx);
         }
     }
