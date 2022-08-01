@@ -431,38 +431,6 @@ module flow::splay_tree {
         }
     }
 
-//    Keeping this code in case we decide to move away from caching minimum / maximum values
-//
-//    fun min_subtree<V: store + drop>(tree: &SplayTree<V>, idx: u64): u64 {
-//        let maybe_left = get_left(tree, idx);
-//        if (option::is_none(&maybe_left)) {
-//            idx
-//        } else {
-//            min_subtree(tree, *option::borrow(&maybe_left))
-//        }
-//    }
-//
-//    public fun min<V: store + drop>(tree: &SplayTree<V>): &V {
-//        assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
-//        let min_idx = min_subtree(tree, *option::borrow(&get_root(tree)));
-//        &get_node_by_index(tree, min_idx).value
-//    }
-//
-//    fun max_subtree<V: store + drop>(tree: &SplayTree<V>, idx: u64): u64 {
-//        let maybe_right = get_right(tree, idx);
-//        if (option::is_none(&maybe_right)) {
-//            idx
-//        } else {
-//            max_subtree(tree, *option::borrow(&maybe_right))
-//        }
-//    }
-//
-//    public fun max<V: store + drop>(tree: &SplayTree<V>): &V {
-//        assert!(option::is_some(&get_root(tree)), ENO_MESSAGE);
-//        let max_idx = max_subtree(tree, *option::borrow(&get_root(tree)));
-//        &get_node_by_index(tree, max_idx).value
-//    }
-
     public fun min<V: store + drop>(tree: &SplayTree<V>): &V {
         assert!(!is_sentinel(tree.min), ENO_MESSAGE);
         let min_idx = unguard(tree.min);
@@ -722,56 +690,6 @@ module flow::splay_tree {
         let max = max(&tree);
         assert!(*max == 5, ENO_MESSAGE);
     }
-
-     #[test]
-     fun test_get_by_key() {
-         let tree = init_tree<u64>(true);
-
-         insert(&mut tree, 1, 1);
-         insert(&mut tree, 0, 0);
-
-         // Tree should look like
-         //  0
-         //   \
-         //    1
-
-         let root = *option::borrow(&get_root(&tree));
-         let root_node = get_node_by_index(&tree, root);
-         assert!(root_node.key == 0, ENO_MESSAGE);
-
-         let maybe_root_right = root_node.right;
-         let root_right = unguard(maybe_root_right);
-         let root_right_node = get_node_by_index(&tree, root_right);
-         assert!(root_right_node.key == 1, ENO_MESSAGE);
-
-         insert(&mut tree, 2, 2);
-         // Tree should look like
-         //  0
-         //   \
-         //    2
-         //   /
-         //  1
-
-         let root = *option::borrow(&get_root(&tree));
-         let root_node = get_node_by_index(&tree, root);
-
-         let maybe_root_right = root_node.right;
-
-         assert!(!is_sentinel(maybe_root_right), ENO_MESSAGE);
-
-         let root_right = unguard(maybe_root_right);
-         let root_right_node = get_node_by_index(&tree, root_right);
-         assert!(root_right_node.key == 2, ENO_MESSAGE);
-
-         let child = unguard(root_right_node.left);
-         let child_node = get_node_by_index(&tree, child);
-
-         assert!(child_node.key == 1, ENO_MESSAGE);
-
-         assert!(*get(&tree, 0) == 0, ENO_MESSAGE);
-         assert!(*get(&tree, 1) == 1, ENO_MESSAGE);
-         assert!(*get(&tree, 2) == 2, ENO_MESSAGE);
-     }
 
     #[test]
     fun test_contains() {
