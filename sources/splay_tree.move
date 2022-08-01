@@ -323,10 +323,12 @@ module flow::splay_tree {
         if (key == node.key) {
             remove_node(tree, idx, parent_idx);
         } else if (key < node.key && !is_sentinel(node.left)) {
-            let left = unguard(node.left);
+            let maybe_left = try_unguard(node.left);
+            let left = *option::borrow(&maybe_left);
             remove_from_subtree(tree, left, option::some(idx), key);
         } else if (key > node.key && !is_sentinel(node.right)) {
-            let right = unguard(node.right);
+            let maybe_right = try_unguard(node.right);
+            let right = *option::borrow(&maybe_right);
             remove_from_subtree(tree, right, option::some(idx), key);
         } else {
             abort EKEY_NOT_FOUND
@@ -562,6 +564,19 @@ module flow::splay_tree {
         };
     }
 
+    fun next_check_return<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64): &V {
+        assert!(!is_sentinel(tree.max), ENO_MESSAGE);
+
+        let max = unguard(tree.max);
+        let max_node = get_node_by_index(tree, max);
+        let node = get_node_by_index(tree, idx);
+
+        if (node.key == max_node.key) {
+            iter.is_done = true;
+        };
+        &node.value
+    }
+
     public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &V {
         assert!(!iter.is_done, EITER_DONE);
         assert!(!iter.reverse, ENO_MESSAGE);
@@ -570,16 +585,18 @@ module flow::splay_tree {
         if (vector::is_empty(&iter.stack)) {
             let current = *option::borrow(&get_root(tree));
             traverse_left(tree, iter, current);
-            let res = top(&iter.stack);
-            return &get_node_by_index(tree, res).value
+
+            let idx = top(&iter.stack);
+            return next_check_return(tree, iter, idx)
         };
         let current = top(&iter.stack);
         let maybe_right = get_right(tree, current);
         if (option::is_some(&maybe_right)) {
             current = *option::borrow(&maybe_right);
             traverse_left(tree, iter, current);
-            let res = top(&iter.stack);
-            return &get_node_by_index(tree, res).value
+
+            let idx = top(&iter.stack);
+            return next_check_return(tree, iter, idx)
         } else {
             let current = vector::pop_back(&mut iter.stack);
             let parent = top(&iter.stack);
@@ -589,10 +606,10 @@ module flow::splay_tree {
                 let maybe_parent_right = get_right(tree, parent);
 
                 if (option::is_some(&maybe_parent_left) && *option::borrow(&maybe_parent_left) == current) {
-                    if (vector::length(&iter.stack) == 1) {
-                        iter.is_done = true;
-                    };
-                    return &get_node_by_index(tree, parent).value
+//                    if (vector::length(&iter.stack) == 1) {
+//                        iter.is_done = true;
+//                    };
+                    return next_check_return(tree, iter, parent)
                 } else if (option::is_some(&maybe_parent_right) && *option::borrow(&maybe_parent_right) == current) {
                     current = vector::pop_back(&mut iter.stack);
                     parent = top(&iter.stack);
@@ -604,6 +621,19 @@ module flow::splay_tree {
         }
     }
 
+    fun prev_check_return<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64): &V {
+        assert!(!is_sentinel(tree.min), ENO_MESSAGE);
+
+        let min = unguard(tree.min);
+        let min_node = get_node_by_index(tree, min);
+        let node = get_node_by_index(tree, idx);
+
+        if (node.key == min_node.key) {
+            iter.is_done = true;
+        };
+        &node.value
+    }
+
     public fun prev<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &V {
         assert!(!iter.is_done, EITER_DONE);
         assert!(iter.reverse, ENO_MESSAGE);
@@ -612,16 +642,16 @@ module flow::splay_tree {
         if (vector::is_empty(&iter.stack)) {
             let current = *option::borrow(&get_root(tree));
             traverse_right(tree, iter, current);
-            let res = top(&iter.stack);
-            return &get_node_by_index(tree, res).value
+            let idx = top(&iter.stack);
+            return prev_check_return(tree, iter, idx)
         };
         let current = top(&iter.stack);
         let maybe_left = get_left(tree, current);
         if (option::is_some(&maybe_left)) {
             current = *option::borrow(&maybe_left);
             traverse_right(tree, iter, current);
-            let res = top(&iter.stack);
-            return &get_node_by_index(tree, res).value
+            let idx = top(&iter.stack);
+            return prev_check_return(tree, iter, idx)
         } else {
             let current = vector::pop_back(&mut iter.stack);
             let parent = top(&iter.stack);
@@ -634,7 +664,7 @@ module flow::splay_tree {
                     if (vector::length(&iter.stack) == 1) {
                         iter.is_done = true;
                     };
-                    return &get_node_by_index(tree, parent).value
+                    return prev_check_return(tree, iter, parent)
                 } else if (option::is_some(&maybe_parent_left) && *option::borrow(&maybe_parent_left) == current) {
                     current = vector::pop_back(&mut iter.stack);
                     parent = top(&iter.stack);
@@ -644,6 +674,10 @@ module flow::splay_tree {
             };
             abort EITER_DONE
         }
+    }
+
+    public fun has_next(iter: &Iterator): bool {
+        !iter.is_done
     }
 
     #[test]
@@ -998,11 +1032,15 @@ module flow::splay_tree {
         let iter = init_iterator(false);
 
         let i = 0;
-        while (i < 6) {
+        while (i < 5) {
             let next = next(&tree, &mut iter);
             assert!(*next == i, ENO_MESSAGE);
+            assert!(has_next(&iter), ENO_MESSAGE);
             i = i + 1;
         };
+        let next = next(&tree, &mut iter);
+        assert!(*next == i, ENO_MESSAGE);
+        assert!(!has_next(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -1019,11 +1057,15 @@ module flow::splay_tree {
         let iter = init_iterator(false);
 
         let i = 0;
-        while (i < 6) {
+        while (i < 5) {
             let next = next(&tree, &mut iter);
             assert!(*next == i, ENO_MESSAGE);
+            assert!(has_next(&iter), ENO_MESSAGE);
             i = i + 1;
         };
+        let next = next(&tree, &mut iter);
+        assert!(*next == i, ENO_MESSAGE);
+        assert!(!has_next(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -1040,11 +1082,15 @@ module flow::splay_tree {
         let iter = init_iterator(false);
 
         let i = 0;
-        while (i < 6) {
+        while (i < 5) {
             let next = next(&tree, &mut iter);
             assert!(*next == i, ENO_MESSAGE);
+            assert!(has_next(&iter), ENO_MESSAGE);
             i = i + 1;
         };
+        let next = next(&tree, &mut iter);
+        assert!(*next == i, ENO_MESSAGE);
+        assert!(!has_next(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -1060,12 +1106,16 @@ module flow::splay_tree {
 
         let iter = init_iterator(true);
 
-        let i = 6;
-        while (i >= 1) {
-            i = i - 1;
+        let i = 5;
+        while (i > 0) {
             let prev = prev(&tree, &mut iter);
             assert!(*prev == i, ENO_MESSAGE);
+            assert!(has_next(&iter), ENO_MESSAGE);
+            i = i - 1;
         };
+        let prev = prev(&tree, &mut iter);
+        assert!(*prev == i, ENO_MESSAGE);
+        assert!(!has_next(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -1081,12 +1131,16 @@ module flow::splay_tree {
 
         let iter = init_iterator(true);
 
-        let i = 6;
-        while (i >= 1) {
-            i = i - 1;
+        let i = 5;
+        while (i > 0) {
             let prev = prev(&tree, &mut iter);
             assert!(*prev == i, ENO_MESSAGE);
+            assert!(has_next(&iter), ENO_MESSAGE);
+            i = i - 1;
         };
+        let prev = prev(&tree, &mut iter);
+        assert!(*prev == i, ENO_MESSAGE);
+        assert!(!has_next(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -1102,11 +1156,15 @@ module flow::splay_tree {
 
         let iter = init_iterator(true);
 
-        let i = 6;
-        while (i >= 1) {
-            i = i - 1;
+        let i = 5;
+        while (i > 0) {
             let prev = prev(&tree, &mut iter);
             assert!(*prev == i, ENO_MESSAGE);
+            assert!(has_next(&iter), ENO_MESSAGE);
+            i = i - 1;
         };
+        let prev = prev(&tree, &mut iter);
+        assert!(*prev == i, ENO_MESSAGE);
+        assert!(!has_next(&iter), ENO_MESSAGE);
     }
 }
