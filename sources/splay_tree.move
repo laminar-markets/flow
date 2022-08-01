@@ -205,6 +205,9 @@ module flow::splay_tree {
         if (option::is_some(&parent_idx)) {
             let parent_idx = *option::borrow(&parent_idx);
             let parent_node = get_mut_node_by_index(tree, parent_idx);
+
+            assert!(is_sentinel(move_to) || parent_idx != unguard(move_to), ENO_MESSAGE);
+
             if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
                 parent_node.left = move_to;
             } else if (!is_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
