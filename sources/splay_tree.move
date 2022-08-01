@@ -1179,4 +1179,50 @@ module flow::splay_tree {
         assert!(*prev == i, ENO_MESSAGE);
         assert!(!has_next(&iter), ENO_MESSAGE);
     }
+
+    #[test]
+    fun test_size_after_insert_remove1() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        assert!(size(&tree) == 1, ENO_MESSAGE);
+
+        insert(&mut tree, 1, 1);
+        assert!(size(&tree) == 2, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        assert!(size(&tree) == 1, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
+        assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
+
+        insert(&mut tree, 0, 0);
+        assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
+        assert!(vector::length(&tree.removed_nodes) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_size_after_insert_remove2() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 1, 1);
+        assert!(size(&tree) == 3, ENO_MESSAGE);
+
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        assert!(size(&tree) == 5, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        remove(&mut tree, 1);
+        assert!(size(&tree) == 3, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
+        assert!(vector::length(&tree.removed_nodes) == 2, ENO_MESSAGE);
+
+        insert(&mut tree, 0, 0);
+        assert!(size(&tree) == 4, ENO_MESSAGE);
+        assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
+        assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
+    }
 }
