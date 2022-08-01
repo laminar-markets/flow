@@ -135,48 +135,24 @@ module flow::splay_tree {
         vector::push_back(&mut tree.removed_nodes, idx);
     }
 
-    fun get_idx_subtree<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, key: u64): u64 {
-        let parent_node = vector::borrow(&tree.nodes, parent_idx);
-        assert!(key != parent_node.key, ENO_MESSAGE);
+    public fun size<V: store + drop>(tree: &SplayTree<V>): u64 {
+        vector::length(&tree.nodes) - vector::length(&tree.removed_nodes)
+    }
 
-        let maybe_left = get_left(tree, parent_idx);
-        let maybe_right = get_right(tree, parent_idx);
+    fun get_idx_subtree<V: store + drop>(tree: &SplayTree<V>, idx: u64, key: u64): u64 {
+        let node = get_node_by_index(tree, idx);
 
-        if (key < parent_node.key && option::is_some(&maybe_left)) {
-            let left = *option::borrow(&maybe_left);
-            let left_node = get_node_by_index(tree, left);
-
-            if (key == left_node.key) {
-                rotate_right(tree, parent_idx, grandparent_idx, left);
-                left
-            } else {
-                let res = get_idx_subtree(tree, unguard(parent_node.left), option::some(parent_idx), key);
-                if (!tree.single_splay) {
-                    rotate_right(tree, parent_idx, grandparent_idx, left);
-                };
-                res
-            }
-        } else if (key > parent_node.key && option::is_some(&maybe_right)) {
-            let right = *option::borrow(&maybe_right);
-            let right_node = get_node_by_index(tree, right);
-
-            if (key == right_node.key) {
-                rotate_left(tree, parent_idx, grandparent_idx, right);
-                right
-            } else {
-                let res = get_idx_subtree(tree, right, option::some(parent_idx), key);
-                if (!tree.single_splay) {
-                    rotate_left(tree, parent_idx, grandparent_idx, right);
-                };
-                res
-            }
+        if (key == node.key) {
+            idx
+        } else if (key < node.key && !is_sentinel(node.left)) {
+            let left = unguard(node.left);
+            get_idx_subtree(tree, left, key)
+        } else if (key > node.key && !is_sentinel(node.right)) {
+            let right = unguard(node.right);
+            get_idx_subtree(tree, right, key)
         } else {
             abort EKEY_NOT_FOUND
         }
-    }
-
-    public fun size<V: store + drop>(tree: &SplayTree<V>): u64 {
-        vector::length(&tree.nodes) - vector::length(&tree.removed_nodes)
     }
 
     public fun get<V: store + drop>(tree: &mut SplayTree<V>, key: u64): &V {
@@ -184,14 +160,9 @@ module flow::splay_tree {
         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
 
         let root = *option::borrow(&maybe_root);
-        let root_node = get_node_by_index(tree, root);
-        if (key == root_node.key) {
-            &root_node.value
-        } else {
-            let idx = get_idx_subtree(tree, root, option::none<u64>(), key);
-            let node = get_node_by_index(tree, idx);
-            &node.value
-        }
+        let idx = get_idx_subtree(tree, root, key);
+        let node = get_node_by_index(tree, idx);
+        &node.value
     }
 
     public fun get_mut<V: store + drop>(tree: &mut SplayTree<V>, key: u64): &mut V {
@@ -199,14 +170,9 @@ module flow::splay_tree {
         assert!(option::is_some(&maybe_root), ENO_MESSAGE);
 
         let root = *option::borrow(&maybe_root);
-        let root_node = get_mut_node_by_index(tree, root);
-        if (key == root_node.key) {
-            &mut root_node.value
-        } else {
-            let idx = get_idx_subtree(tree, root, option::none<u64>(), key);
-            let node = get_mut_node_by_index(tree, idx);
-            &mut node.value
-        }
+        let idx = get_idx_subtree(tree, root, key);
+        let node = get_mut_node_by_index(tree, idx);
+        &mut node.value
     }
 
     fun contains_node_subtree<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, grandparent_idx: Option<u64>, key: u64): bool {
@@ -262,19 +228,21 @@ module flow::splay_tree {
     }
 
     fun swap_nodes<V: store + drop>(tree: &mut SplayTree<V>, from: u64, to: u64) {
-        let from_left;
-        let from_right;
-        {
-            let node_from = get_node_by_index(tree, from);
-            from_left = node_from.left;
-            from_right = node_from.right;
+        assert!(from < vector::length(&tree.nodes), ENO_MESSAGE);
+        assert!(to < vector::length(&tree.nodes), ENO_MESSAGE);
+        assert!(from != to, ENO_MESSAGE);
+
+        let (from_left, from_right) = {
+            let node_from = vector::borrow(&mut tree.nodes, from);
+            (node_from.left, node_from.right)
         };
-        let node_to = get_mut_node_by_index(tree, to);
+
+        let node_to = vector::borrow_mut(&mut tree.nodes, to);
 
         node_to.left = from_left;
         node_to.right = from_right;
 
-        vector::swap(&mut tree.nodes, from, to);
+//        vector::swap(&mut tree.nodes, from, to);
     }
 
     fun remove_node<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: Option<u64>) {
@@ -308,7 +276,7 @@ module flow::splay_tree {
                 let parent_node = get_mut_node_by_index(tree, parent_idx);
                 if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
                     parent_node.left = sentinel();
-                } else if (!is_sentinel(parent_node.right) && unguard(parent_node.right) == idx) {
+                } else if (!is_sentinel(parent_node.right) && unguard(parentg_node.right) == idx) {
                     parent_node.right = sentinel();
                 } else {
                     abort EPARENT_CHILD_MISMATCH
