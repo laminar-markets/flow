@@ -287,7 +287,7 @@ module flow::splay_tree {
     }
 
     fun insert_child<V: store + drop>(tree: &mut SplayTree<V>, parent_idx: u64, gp_idx: Option<u64>, idx: u64, key: u64, value: V) {
-        let parent_node = vector::borrow(&tree.nodes, parent_idx);
+        let parent_node = get_node_by_index(tree, parent_idx);
 
         if (key < parent_node.key) {
             if (is_sentinel(parent_node.left)) {
@@ -444,6 +444,44 @@ module flow::splay_tree {
         assert!(!is_sentinel(tree.max), ENO_MESSAGE);
         let max_idx = unguard(tree.max);
         &get_node_by_index(tree, max_idx).value
+    }
+
+    fun splay_child<V: store + drop>(tree: &mut SplayTree<V>, idx: u64, parent_idx: u64, gp_idx: Option<u64>, is_left_child: bool, key: u64) {
+        let node = get_node_by_index(tree, idx);
+
+        if (key == node.key) {
+            if (is_left_child) {
+                rotate_right(tree, parent_idx, gp_idx, idx);
+            } else {
+                rotate_left(tree, parent_idx, gp_idx, idx);
+            }
+        } else if (key < node.key && !is_sentinel(node.left)) {
+            splay_child(tree, unguard(node.left), idx, option::some(parent_idx), true, key);
+        } else if (key > node.key && !is_sentinel(node.right)) {
+            splay_child(tree, unguard(node.right), idx, option::some(parent_idx), false, key);
+        } else {
+            abort EKEY_NOT_FOUND
+        }
+    }
+
+    public fun splay<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
+        let maybe_root = get_root(tree);
+        assert!(!is_sentinel(maybe_root), ENO_MESSAGE);
+
+        let root = unguard(maybe_root);
+        assert!(root != key, ENO_MESSAGE);
+
+        let root_node = get_node_by_index(tree, root);
+
+        if (key < root_node.key && !is_sentinel(root_node.left)) {
+            let root_left = unguard(root_node.left);
+            splay_child(tree, root_left, root, option::none<u64>(), true, key);
+        } else if (key > root_node.key && !is_sentinel(root_node.right)) {
+            let root_right = unguard(root_node.right);
+            splay_child(tree, root_right, root, option::none<u64>(), false, key);
+        } else {
+            abort EKEY_NOT_FOUND
+        }
     }
 
     fun top<T: copy>(v: &vector<T>): T {
