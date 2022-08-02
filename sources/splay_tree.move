@@ -902,6 +902,28 @@ module flow::splay_tree {
     }
 
     #[test]
+    fun test_splay() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+
+        let root = unguard(get_root(&tree));
+        let root_node = get_node_by_index(&tree, root);
+        assert!(root_node.key == 5, ENO_MESSAGE);
+
+        splay(&mut tree, 0);
+        splay(&mut tree, 1);
+        splay(&mut tree, 2);
+        splay(&mut tree, 3);
+        splay(&mut tree, 4);
+    }
+
+    #[test]
     fun test_init_iter() {
         let iter = init_iterator(false);
 
