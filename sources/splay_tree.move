@@ -3,9 +3,18 @@ module flow::splay_tree {
     use std::option::{Self, Option};
 
     const ENO_MESSAGE: u64 = 0;
+    // key not found in the splay tree
     const EKEY_NOT_FOUND: u64 = 1;
+    // provided nodes were not a parent-child pair
     const EPARENT_CHILD_MISMATCH: u64 = 2;
-    const EITER_DONE: u64 = 3;
+    // tree has zero nodes
+    const ETREE_IS_EMPTY: u64 = 3;
+    // tree is in invalid state
+    const EINVALID_STATE: u64 = 4;
+    // invalid argument provided
+    const EINVALID_ARGUMENT: u64 = 5;
+    // iterator already completed
+    const EITER_ALREADY_DONE: u64 = 6;
 
     const SENTINEL_VALUE: u64 = 0xffffffffffffffff;
 
@@ -20,7 +29,7 @@ module flow::splay_tree {
     }
 
     fun unguard(guard: GuardedIdx): u64 {
-        assert!(!is_sentinel(guard), EKEY_NOT_FOUND);
+        assert!(!is_sentinel(guard), EINVALID_ARGUMENT);
         guard.value
     }
 
@@ -157,7 +166,7 @@ module flow::splay_tree {
 
     public fun get<V: store + drop>(tree: &SplayTree<V>, key: u64): &V {
         let root = get_root(tree);
-        assert!(!is_sentinel(root), ENO_MESSAGE);
+        assert!(!is_sentinel(root), ETREE_IS_EMPTY);
 
         let idx = get_idx_subtree(tree, unguard(root), key);
         let node = get_node_by_index(tree, idx);
@@ -166,7 +175,7 @@ module flow::splay_tree {
 
     public fun get_mut<V: store + drop>(tree: &mut SplayTree<V>, key: u64): &mut V {
         let root = get_root(tree);
-        assert!(!is_sentinel(root), ENO_MESSAGE);
+        assert!(!is_sentinel(root), ETREE_IS_EMPTY);
 
         let idx = get_idx_subtree(tree, unguard(root), key);
         let node = get_mut_node_by_index(tree, idx);
@@ -203,7 +212,7 @@ module flow::splay_tree {
             let parent_idx = *option::borrow(&parent_idx);
             let parent_node = get_mut_node_by_index(tree, parent_idx);
 
-            assert!(is_sentinel(move_to) || parent_idx != unguard(move_to), ENO_MESSAGE);
+            assert!(is_sentinel(move_to) || parent_idx != unguard(move_to), EINVALID_ARGUMENT);
 
             if (!is_sentinel(parent_node.left) && unguard(parent_node.left) == idx) {
                 parent_node.left = move_to;
@@ -273,14 +282,14 @@ module flow::splay_tree {
 
     public fun remove<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
         let maybe_root = get_root(tree);
-        assert!(!is_sentinel(maybe_root), ENO_MESSAGE);
+        assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
 
         let root = unguard(maybe_root);
         remove_from_subtree(tree, root, option::none<u64>(), key);
     }
 
     fun pop<T: copy + drop>(v: &mut vector<T>): T {
-        assert!(!vector::is_empty(v), ENO_MESSAGE);
+        assert!(!vector::is_empty(v), ETREE_IS_EMPTY);
         let first = *vector::borrow(v, 0);
         vector::remove(v, 0);
         first
@@ -331,16 +340,16 @@ module flow::splay_tree {
     public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
         let maybe_root = get_root(tree);
         if (is_sentinel(maybe_root)) {
-            assert!(vector::length(&tree.nodes) - vector::length(&tree.removed_nodes) == 0, ENO_MESSAGE);
+            assert!(vector::length(&tree.nodes) - vector::length(&tree.removed_nodes) == 0, EINVALID_STATE);
             let node = init_node(key, value);
             vector::push_back(&mut tree.nodes, node);
             set_root(tree, guard(0));
             update_min(tree, key, 0);
             update_max(tree, key, 0);
         } else {
-            assert!(!is_sentinel(maybe_root), ENO_MESSAGE);
-            assert!(!is_sentinel(tree.min), ENO_MESSAGE);
-            assert!(!is_sentinel(tree.max), ENO_MESSAGE);
+            assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
+            assert!(!is_sentinel(tree.min), EINVALID_STATE);
+            assert!(!is_sentinel(tree.max), EINVALID_STATE);
 
             let root = unguard(maybe_root);
 
@@ -402,9 +411,9 @@ module flow::splay_tree {
                 abort EPARENT_CHILD_MISMATCH
             }
         } else {
-            assert!(!is_sentinel(tree.root), ENO_MESSAGE);
+            assert!(!is_sentinel(tree.root), ETREE_IS_EMPTY);
             let root = unguard(tree.root);
-            assert!(root == parent_idx, ENO_MESSAGE);
+            assert!(root == parent_idx, EPARENT_CHILD_MISMATCH);
             set_root(tree, guard(child_idx));
         }
     }
@@ -427,21 +436,21 @@ module flow::splay_tree {
                 abort EPARENT_CHILD_MISMATCH
             }
         } else {
-            assert!(!is_sentinel(tree.root), ENO_MESSAGE);
+            assert!(!is_sentinel(tree.root), ETREE_IS_EMPTY);
             let root = unguard(tree.root);
-            assert!(root == parent_idx, ENO_MESSAGE);
+            assert!(root == parent_idx, EPARENT_CHILD_MISMATCH);
             set_root(tree, guard(child_idx));
         }
     }
 
     public fun min<V: store + drop>(tree: &SplayTree<V>): &V {
-        assert!(!is_sentinel(tree.min), ENO_MESSAGE);
+        assert!(!is_sentinel(tree.min), EINVALID_STATE);
         let min_idx = unguard(tree.min);
         &get_node_by_index(tree, min_idx).value
     }
 
     public fun max<V: store + drop>(tree: &SplayTree<V>): &V {
-        assert!(!is_sentinel(tree.max), ENO_MESSAGE);
+        assert!(!is_sentinel(tree.max), EINVALID_STATE);
         let max_idx = unguard(tree.max);
         &get_node_by_index(tree, max_idx).value
     }
@@ -466,10 +475,10 @@ module flow::splay_tree {
 
     public fun splay<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
         let maybe_root = get_root(tree);
-        assert!(!is_sentinel(maybe_root), ENO_MESSAGE);
+        assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
 
         let root = unguard(maybe_root);
-        assert!(root != key, ENO_MESSAGE);
+        assert!(root != key, EINVALID_ARGUMENT);
 
         let root_node = get_node_by_index(tree, root);
 
@@ -507,7 +516,7 @@ module flow::splay_tree {
     }
 
     fun next_check_return<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64): &V {
-        assert!(!is_sentinel(tree.max), ENO_MESSAGE);
+        assert!(!is_sentinel(tree.max), EINVALID_STATE);
 
         let max = unguard(tree.max);
         let max_node = get_node_by_index(tree, max);
@@ -522,9 +531,9 @@ module flow::splay_tree {
     public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &V {
         let maybe_root = get_root(tree);
 
-        assert!(!iter.is_done, EITER_DONE);
-        assert!(!iter.reverse, ENO_MESSAGE);
-        assert!(!is_sentinel(maybe_root), ENO_MESSAGE);
+        assert!(!iter.is_done, EITER_ALREADY_DONE);
+        assert!(!iter.reverse, EINVALID_ARGUMENT);
+        assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
 
         let root = unguard(maybe_root);
         if (vector::is_empty(&iter.stack)) {
@@ -559,12 +568,12 @@ module flow::splay_tree {
                     abort EPARENT_CHILD_MISMATCH
                 };
             };
-            abort EITER_DONE
+            abort EITER_ALREADY_DONE
         }
     }
 
     fun prev_check_return<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64): &V {
-        assert!(!is_sentinel(tree.min), ENO_MESSAGE);
+        assert!(!is_sentinel(tree.min), EINVALID_STATE);
 
         let min = unguard(tree.min);
         let min_node = get_node_by_index(tree, min);
@@ -579,9 +588,9 @@ module flow::splay_tree {
     public fun prev<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): &V {
         let root = get_root(tree);
 
-        assert!(!iter.is_done, EITER_DONE);
-        assert!(iter.reverse, ENO_MESSAGE);
-        assert!(!is_sentinel(root), ENO_MESSAGE);
+        assert!(!iter.is_done, EITER_ALREADY_DONE);
+        assert!(iter.reverse, EINVALID_ARGUMENT);
+        assert!(!is_sentinel(root), ETREE_IS_EMPTY);
 
         if (vector::is_empty(&iter.stack)) {
             let current = unguard(root);
@@ -613,7 +622,7 @@ module flow::splay_tree {
                     abort EPARENT_CHILD_MISMATCH
                 };
             };
-            abort EITER_DONE
+            abort EITER_ALREADY_DONE
         }
     }
 
