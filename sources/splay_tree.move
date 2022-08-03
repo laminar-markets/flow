@@ -3,16 +3,22 @@ module flow::splay_tree {
     use std::option::{Self, Option};
 
     const ENO_MESSAGE: u64 = 0;
+
     // key not found in the splay tree
     const EKEY_NOT_FOUND: u64 = 1;
+
     // provided nodes were not a parent-child pair
     const EPARENT_CHILD_MISMATCH: u64 = 2;
+
     // tree has zero nodes
     const ETREE_IS_EMPTY: u64 = 3;
+
     // tree is in invalid state
     const EINVALID_STATE: u64 = 4;
+
     // invalid argument provided
     const EINVALID_ARGUMENT: u64 = 5;
+
     // iterator already completed
     const EITER_ALREADY_DONE: u64 = 6;
 
@@ -444,12 +450,14 @@ module flow::splay_tree {
     }
 
     public fun min<V: store + drop>(tree: &SplayTree<V>): &V {
+        assert!(!is_sentinel(tree.root), ETREE_IS_EMPTY);
         assert!(!is_sentinel(tree.min), EINVALID_STATE);
         let min_idx = unguard(tree.min);
         &get_node_by_index(tree, min_idx).value
     }
 
     public fun max<V: store + drop>(tree: &SplayTree<V>): &V {
+        assert!(!is_sentinel(tree.root), ETREE_IS_EMPTY);
         assert!(!is_sentinel(tree.max), EINVALID_STATE);
         let max_idx = unguard(tree.max);
         &get_node_by_index(tree, max_idx).value
@@ -747,6 +755,20 @@ module flow::splay_tree {
     }
 
     #[test]
+    #[expected_failure(abort_code = 3)]
+    fun test_min_empty_tree() {
+        let tree = init_tree<u64>(true);
+        let _min = min(&tree);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 3)]
+    fun test_max_empty_tree() {
+        let tree = init_tree<u64>(true);
+        let _max = max(&tree);
+    }
+
+    #[test]
     fun test_contains() {
         let tree = init_tree<u64>(true);
 
@@ -761,7 +783,28 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
-        assert!(!contains(&tree, 6), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_does_not_contain() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_contains_empty_tree() {
+        let tree = init_tree<u64>(true);
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
     }
 
     #[test]
