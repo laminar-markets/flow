@@ -1186,6 +1186,78 @@ module flow::splay_tree {
     }
 
     #[test]
+    #[expected_failure(abort_code = 5)]
+    fun test_next_on_reverse_iterator() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        let iter = init_iterator(true);
+        next(&tree, &mut iter);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 5)]
+    fun test_prev_on_forward_iterator() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        let iter = init_iterator(false);
+        prev(&tree, &mut iter);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 6)]
+    fun test_iterator_next_after_done() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        let iter = init_iterator(false);
+
+        while (has_next(&iter)) {
+            let _next = next(&tree, &mut iter);
+        };
+        next(&tree, &mut iter);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 6)]
+    fun test_reverse_iterator_prev_after_done() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        let iter = init_iterator(true);
+
+        while (has_next(&iter)) {
+            let _prev = prev(&tree, &mut iter);
+        };
+        prev(&tree, &mut iter);
+    }
+
+    #[test]
     fun test_size_after_insert_remove1() {
         let tree = init_tree<u64>(true);
 
