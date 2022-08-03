@@ -3,16 +3,22 @@ module flow::splay_tree {
     use std::option::{Self, Option};
 
     const ENO_MESSAGE: u64 = 0;
+
     // key not found in the splay tree
     const EKEY_NOT_FOUND: u64 = 1;
+
     // provided nodes were not a parent-child pair
     const EPARENT_CHILD_MISMATCH: u64 = 2;
+
     // tree has zero nodes
     const ETREE_IS_EMPTY: u64 = 3;
+
     // tree is in invalid state
     const EINVALID_STATE: u64 = 4;
+
     // invalid argument provided
     const EINVALID_ARGUMENT: u64 = 5;
+
     // iterator already completed
     const EITER_ALREADY_DONE: u64 = 6;
 
@@ -444,12 +450,14 @@ module flow::splay_tree {
     }
 
     public fun min<V: store + drop>(tree: &SplayTree<V>): &V {
+        assert!(!is_sentinel(tree.root), ETREE_IS_EMPTY);
         assert!(!is_sentinel(tree.min), EINVALID_STATE);
         let min_idx = unguard(tree.min);
         &get_node_by_index(tree, min_idx).value
     }
 
     public fun max<V: store + drop>(tree: &SplayTree<V>): &V {
+        assert!(!is_sentinel(tree.root), ETREE_IS_EMPTY);
         assert!(!is_sentinel(tree.max), EINVALID_STATE);
         let max_idx = unguard(tree.max);
         &get_node_by_index(tree, max_idx).value
@@ -626,7 +634,7 @@ module flow::splay_tree {
         }
     }
 
-    public fun has_next(iter: &Iterator): bool {
+    public fun is_done(iter: &Iterator): bool {
         !iter.is_done
     }
 
@@ -747,6 +755,53 @@ module flow::splay_tree {
     }
 
     #[test]
+    #[expected_failure(abort_code = 3)]
+    fun test_min_empty() {
+        let tree = init_tree<u64>(true);
+        let _min = min(&tree);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 3)]
+    fun test_max_empty() {
+        let tree = init_tree<u64>(true);
+        let _max = max(&tree);
+    }
+
+    #[test]
+    fun test_equal_min_max() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+
+        let min = min(&tree);
+        let max = max(&tree);
+
+        assert!(*min == 2, ENO_MESSAGE);
+        assert!(*max == 2, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_size() {
+        let tree = init_tree<u64>(true);
+        
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+        
+        assert!(size(&tree) == 6, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_size_empty() {
+        let tree = init_tree<u64>(true);
+        assert!(size(&tree) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
     fun test_contains() {
         let tree = init_tree<u64>(true);
 
@@ -761,7 +816,28 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
-        assert!(!contains(&tree, 6), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_does_not_contain() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_contains_empty_tree() {
+        let tree = init_tree<u64>(true);
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
     }
 
     #[test]
@@ -933,6 +1009,25 @@ module flow::splay_tree {
     }
 
     #[test]
+    #[expected_failure(abort_code = 5)]
+    fun test_splay_root() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+
+        let root = unguard(get_root(&tree));
+        let root_node = get_node_by_index(&tree, root);
+        assert!(root_node.key == 5, ENO_MESSAGE);
+
+        splay(&mut tree, 5);
+    }
+
+    #[test]
     fun test_init_iter() {
         let iter = init_iterator(false);
 
@@ -957,12 +1052,12 @@ module flow::splay_tree {
         while (i < 5) {
             let next = next(&tree, &mut iter);
             assert!(*next == i, ENO_MESSAGE);
-            assert!(has_next(&iter), ENO_MESSAGE);
+            assert!(is_done(&iter), ENO_MESSAGE);
             i = i + 1;
         };
         let next = next(&tree, &mut iter);
         assert!(*next == i, ENO_MESSAGE);
-        assert!(!has_next(&iter), ENO_MESSAGE);
+        assert!(!is_done(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -982,12 +1077,12 @@ module flow::splay_tree {
         while (i < 5) {
             let next = next(&tree, &mut iter);
             assert!(*next == i, ENO_MESSAGE);
-            assert!(has_next(&iter), ENO_MESSAGE);
+            assert!(is_done(&iter), ENO_MESSAGE);
             i = i + 1;
         };
         let next = next(&tree, &mut iter);
         assert!(*next == i, ENO_MESSAGE);
-        assert!(!has_next(&iter), ENO_MESSAGE);
+        assert!(!is_done(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -1007,12 +1102,12 @@ module flow::splay_tree {
         while (i < 5) {
             let next = next(&tree, &mut iter);
             assert!(*next == i, ENO_MESSAGE);
-            assert!(has_next(&iter), ENO_MESSAGE);
+            assert!(is_done(&iter), ENO_MESSAGE);
             i = i + 1;
         };
         let next = next(&tree, &mut iter);
         assert!(*next == i, ENO_MESSAGE);
-        assert!(!has_next(&iter), ENO_MESSAGE);
+        assert!(!is_done(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -1032,12 +1127,12 @@ module flow::splay_tree {
         while (i > 0) {
             let prev = prev(&tree, &mut iter);
             assert!(*prev == i, ENO_MESSAGE);
-            assert!(has_next(&iter), ENO_MESSAGE);
+            assert!(is_done(&iter), ENO_MESSAGE);
             i = i - 1;
         };
         let prev = prev(&tree, &mut iter);
         assert!(*prev == i, ENO_MESSAGE);
-        assert!(!has_next(&iter), ENO_MESSAGE);
+        assert!(!is_done(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -1057,12 +1152,12 @@ module flow::splay_tree {
         while (i > 0) {
             let prev = prev(&tree, &mut iter);
             assert!(*prev == i, ENO_MESSAGE);
-            assert!(has_next(&iter), ENO_MESSAGE);
+            assert!(is_done(&iter), ENO_MESSAGE);
             i = i - 1;
         };
         let prev = prev(&tree, &mut iter);
         assert!(*prev == i, ENO_MESSAGE);
-        assert!(!has_next(&iter), ENO_MESSAGE);
+        assert!(!is_done(&iter), ENO_MESSAGE);
     }
 
     #[test]
@@ -1082,12 +1177,84 @@ module flow::splay_tree {
         while (i > 0) {
             let prev = prev(&tree, &mut iter);
             assert!(*prev == i, ENO_MESSAGE);
-            assert!(has_next(&iter), ENO_MESSAGE);
+            assert!(is_done(&iter), ENO_MESSAGE);
             i = i - 1;
         };
         let prev = prev(&tree, &mut iter);
         assert!(*prev == i, ENO_MESSAGE);
-        assert!(!has_next(&iter), ENO_MESSAGE);
+        assert!(!is_done(&iter), ENO_MESSAGE);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 5)]
+    fun test_next_on_reverse_iterator() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        let iter = init_iterator(true);
+        next(&tree, &mut iter);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 5)]
+    fun test_prev_on_forward_iterator() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        let iter = init_iterator(false);
+        prev(&tree, &mut iter);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 6)]
+    fun test_iterator_next_after_done() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        let iter = init_iterator(false);
+
+        while (is_done(&iter)) {
+            let _next = next(&tree, &mut iter);
+        };
+        next(&tree, &mut iter);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 6)]
+    fun test_reverse_iterator_prev_after_done() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        let iter = init_iterator(true);
+
+        while (is_done(&iter)) {
+            let _prev = prev(&tree, &mut iter);
+        };
+        prev(&tree, &mut iter);
     }
 
     #[test]
