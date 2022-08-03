@@ -756,16 +756,49 @@ module flow::splay_tree {
 
     #[test]
     #[expected_failure(abort_code = 3)]
-    fun test_min_empty_tree() {
+    fun test_min_empty() {
         let tree = init_tree<u64>(true);
         let _min = min(&tree);
     }
 
     #[test]
     #[expected_failure(abort_code = 3)]
-    fun test_max_empty_tree() {
+    fun test_max_empty() {
         let tree = init_tree<u64>(true);
         let _max = max(&tree);
+    }
+
+    #[test]
+    fun test_equal_min_max() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+
+        let min = min(&tree);
+        let max = max(&tree);
+
+        assert!(*min == 2, ENO_MESSAGE);
+        assert!(*max == 2, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_size() {
+        let tree = init_tree<u64>(true);
+        
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+        
+        assert!(size(&tree) == 6, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_size_empty() {
+        let tree = init_tree<u64>(true);
+        assert!(size(&tree) == 0, ENO_MESSAGE);
     }
 
     #[test]
@@ -973,6 +1006,25 @@ module flow::splay_tree {
         splay(&mut tree, 2);
         splay(&mut tree, 3);
         splay(&mut tree, 4);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 5)]
+    fun test_splay_root() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+
+        let root = unguard(get_root(&tree));
+        let root_node = get_node_by_index(&tree, root);
+        assert!(root_node.key == 5, ENO_MESSAGE);
+
+        splay(&mut tree, 5);
     }
 
     #[test]
