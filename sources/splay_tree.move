@@ -154,6 +154,10 @@ module flow::splay_tree {
         vector::length(&tree.nodes) - vector::length(&tree.removed_nodes)
     }
 
+    public fun is_empty<V: store + drop>(tree: &SplayTree<V>): bool {
+        size(tree) == 0
+    }
+
     fun get_idx_subtree<V: store + drop>(tree: &SplayTree<V>, idx: u64, key: u64): u64 {
         let node = get_node_by_index(tree, idx);
 
@@ -799,6 +803,19 @@ module flow::splay_tree {
     fun test_size_empty() {
         let tree = init_tree<u64>(true);
         assert!(size(&tree) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_is_empty() {
+        let tree = init_tree<u64>(true);
+        assert!(is_empty(&tree), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_is_not_empty() {
+        let tree = init_tree<u64>(true);
+        insert(&mut tree, 0, 0);
+        assert!(!is_empty(&tree), ENO_MESSAGE);
     }
 
     #[test]
