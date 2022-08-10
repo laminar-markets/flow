@@ -3,7 +3,10 @@ name = "Flow"
 version = "0.0.0"
 
 [dependencies]
-AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "main" }
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "02c1d40bc321f15386de88b1abd962cafce205b7" }
 
 [addresses]
-flow = "0x1"
+std = "0x1"
+aptos_std = "0x1"
+aptos_framework = "0x1"
+flow = "0xF"
