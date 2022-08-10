@@ -1336,6 +1336,84 @@ module flow::splay_tree {
     }
 
     #[test]
+    fun test_iter_traversal_mut() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
+
+        let iter = init_iterator(false);
+
+        let i = 0;
+        while (i < 5) {
+            let (_, next) = next_mut(&mut tree, &mut iter);
+            assert!(*next == i, ENO_MESSAGE);
+
+            *next = *next + 1;
+            assert!(*next == i + 1, ENO_MESSAGE);
+
+            assert!(has_next(&iter), ENO_MESSAGE);
+            i = i + 1;
+        };
+        let (_, next) = next_mut(&mut tree, &mut iter);
+        assert!(*next == i, ENO_MESSAGE);
+
+        *next = *next + 1;
+        assert!(*next == i + 1, ENO_MESSAGE);
+
+        assert!(!has_next(&iter), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 1, ENO_MESSAGE);
+        assert!(*max(&tree) == 6, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_iter_reverse_traversal_mut() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
+
+        let iter = init_iterator(true);
+
+        let i = 5;
+        while (i > 0) {
+            let (_, next) = next_mut(&mut tree, &mut iter);
+            assert!(*next == i, ENO_MESSAGE);
+
+            *next = *next + 1;
+            assert!(*next == i + 1, ENO_MESSAGE);
+
+            assert!(has_next(&iter), ENO_MESSAGE);
+            i = i - 1;
+        };
+        let (_, next) = next_mut(&mut tree, &mut iter);
+        assert!(*next == i, ENO_MESSAGE);
+
+        *next = *next + 1;
+        assert!(*next == i + 1, ENO_MESSAGE);
+
+        assert!(!has_next(&iter), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 1, ENO_MESSAGE);
+        assert!(*max(&tree) == 6, ENO_MESSAGE);
+    }
+
+    #[test]
     fun test_size_after_insert_remove1() {
         let tree = init_tree<u64>(true);
 
