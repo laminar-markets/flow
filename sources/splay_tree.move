@@ -39,6 +39,18 @@ module flow::splay_tree {
         guard.value
     }
 
+    fun try_guard(value: Option<u64>): GuardedIdx {
+        guard(option::destroy_with_default(value, SENTINEL_VALUE))
+    }
+
+    fun try_unguard(guard: GuardedIdx): Option<u64> {
+        if (guard.value == SENTINEL_VALUE) {
+            option::none()
+        } else {
+            option::some(guard.value)
+        }
+    }
+
     fun sentinel(): GuardedIdx {
         GuardedIdx {
             value: SENTINEL_VALUE
