@@ -350,12 +350,14 @@ module flow::splay_tree {
     public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
         let maybe_root = get_root(tree);
         if (is_sentinel(maybe_root)) {
-            assert!(vector::length(&tree.nodes) - vector::length(&tree.removed_nodes) == 0, EINVALID_STATE);
+            assert!(size(tree) == 0, EINVALID_STATE);
             let node = init_node(key, value);
             vector::push_back(&mut tree.nodes, node);
-            set_root(tree, guard(0));
-            update_min(tree, key, 0);
-            update_max(tree, key, 0);
+            let root_idx = vector::length(&tree.nodes) - 1;
+
+            set_root(tree, guard(root_idx));
+            update_min(tree, key, root_idx);
+            update_max(tree, key, root_idx);
         } else {
             assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
             assert!(!is_sentinel(tree.min), EINVALID_STATE);
@@ -490,9 +492,12 @@ module flow::splay_tree {
         assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
 
         let root = unguard(maybe_root);
-        assert!(root != key, EINVALID_ARGUMENT);
-
         let root_node = get_node_by_index(tree, root);
+
+        // splay operation cannot be performed on root node cannot be splayed
+        if (key == root_node.key) {
+            return
+        };
 
         if (key < root_node.key && !is_sentinel(root_node.left)) {
             let root_left = unguard(root_node.left);
