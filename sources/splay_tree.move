@@ -480,9 +480,12 @@ module flow::splay_tree {
         assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
 
         let root = unguard(maybe_root);
-        assert!(root != key, EINVALID_ARGUMENT);
-
         let root_node = get_node_by_index(tree, root);
+
+        // splay operation cannot be performed on root node cannot be splayed
+        if (key == root_node.key) {
+            return
+        };
 
         if (key < root_node.key && !is_sentinel(root_node.left)) {
             let root_left = unguard(root_node.left);
