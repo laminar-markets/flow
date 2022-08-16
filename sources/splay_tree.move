@@ -39,18 +39,6 @@ module flow::splay_tree {
         guard.value
     }
 
-    fun try_guard(value: Option<u64>): GuardedIdx {
-        guard(option::destroy_with_default(value, SENTINEL_VALUE))
-    }
-
-    fun try_unguard(guard: GuardedIdx): Option<u64> {
-        if (guard.value == SENTINEL_VALUE) {
-            option::none()
-        } else {
-            option::some(guard.value)
-        }
-    }
-
     fun sentinel(): GuardedIdx {
         GuardedIdx {
             value: SENTINEL_VALUE
@@ -350,12 +338,14 @@ module flow::splay_tree {
     public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
         let maybe_root = get_root(tree);
         if (is_sentinel(maybe_root)) {
-            assert!(vector::length(&tree.nodes) - vector::length(&tree.removed_nodes) == 0, EINVALID_STATE);
+            assert!(size(tree) == 0, EINVALID_STATE);
             let node = init_node(key, value);
             vector::push_back(&mut tree.nodes, node);
-            set_root(tree, guard(0));
-            update_min(tree, key, 0);
-            update_max(tree, key, 0);
+            let root_idx = vector::length(&tree.nodes) - 1;
+
+            set_root(tree, guard(root_idx));
+            update_min(tree, key, root_idx);
+            update_max(tree, key, root_idx);
         } else {
             assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
             assert!(!is_sentinel(tree.min), EINVALID_STATE);
