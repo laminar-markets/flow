@@ -22,6 +22,9 @@ module flow::splay_tree {
     // iterator already completed
     const EITER_ALREADY_DONE: u64 = 6;
 
+    // vector is empty
+    const EVECTOR_EMPTY: u64 = 7;
+
     const SENTINEL_VALUE: u64 = 0xffffffffffffffff;
 
     struct GuardedIdx has store, drop, copy {
@@ -511,7 +514,11 @@ module flow::splay_tree {
     }
 
     fun top<T: copy>(v: &vector<T>): T {
-        *vector::borrow(v, vector::length(v) - 1)
+        let len = vector::length(v);
+        if (len <= 0) {
+            abort EVECTOR_EMPTY
+        };
+        *vector::borrow(v, len - 1)
     }
 
     fun traverse_left<V: store + drop>(tree: &SplayTree<V>, stack: &mut vector<u64>, parent_idx: u64) {
@@ -672,47 +679,46 @@ module flow::splay_tree {
         !iter.is_done
     }
 
-//    public fun remove_nodes_less_than<V>(tree: &mut SplayTree<V>, key: u64) {
-//        let maybe_root = get_root(tree);
-//
-//        assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
-//
-//        let root = unguard(maybe_root);
-//
-//        if (vector::is_empty(&iter.stack)) {
-//            let current = root;
-//            traverse_left(tree, &mut iter.stack, current);
-//            let idx = top(&iter.stack);
-//            return next_check_return_mut(tree, iter, idx)
-//        };
-//        let current = top(&iter.stack);
-//        let maybe_right = get_right(tree, current);
-//        if (!is_sentinel(maybe_right)) {
-//            current = unguard(maybe_right);
-//            traverse_left(tree, &mut iter.stack, current);
-//
-//            let idx = top(&iter.stack);
-//            return next_check_return_mut(tree, iter, idx)
-//        } else {
-//            let current = vector::pop_back(&mut iter.stack);
-//            let parent = top(&iter.stack);
-//
-//            while (current != root) {
-//                let maybe_parent_left = get_left(tree, parent);
-//                let maybe_parent_right = get_right(tree, parent);
-//
-//                if (!is_sentinel(maybe_parent_left) && unguard(maybe_parent_left) == current) {
-//                    return next_check_return_mut(tree, iter, parent)
-//                } else if (!is_sentinel(maybe_parent_right) && unguard(maybe_parent_right) == current) {
-//                    current = vector::pop_back(&mut iter.stack);
-//                    parent = top(&iter.stack);
-//                } else {
-//                    abort EPARENT_CHILD_MISMATCH
-//                };
-//            };
-//            abort EITER_ALREADY_DONE
-//        }
-//    }
+    public fun remove_nodes_less_than<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
+        let maybe_root = get_root(tree);
+        assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
+        let root = unguard(maybe_root);
+
+        let iter = init_iterator(false);
+        let nodes_to_remove = vector::empty<u64>();
+
+        while (has_next(&iter)) {
+            let idx = next_node_idx(tree, &mut iter);
+            let node = get_node_by_index(tree, idx);
+
+            if (key > node.key) {
+                vector::push_back(&mut nodes_to_remove, idx);
+            } else {
+                let current = vector::pop_back(&mut iter.stack);
+                assert!(current == idx, EINVALID_STATE);
+                set_left(tree, idx, sentinel());
+
+                while (current != root) {
+                    let parent = top(&mut iter.stack);
+
+                    let maybe_left = get_left(tree, parent);
+                    let maybe_right = get_right(tree, parent);
+
+                    if (!is_sentinel(maybe_left) && unguard(maybe_left) == current) {
+                        set_left(tree, parent, guard(current));
+                        vector::append(&mut tree.removed_nodes, nodes_to_remove);
+                        return
+                    } else if (!is_sentinel(maybe_right) && unguard(maybe_right) == current) {
+                        current = vector::pop_back(&mut iter.stack);
+                    } else {
+                        abort EPARENT_CHILD_MISMATCH
+                    }
+                };
+                set_root(tree, guard(idx));
+            };
+            check_is_done(tree, &mut iter, idx);
+        }
+    }
 
     #[test]
     fun test_init_tree() {
@@ -1440,5 +1446,26 @@ module flow::splay_tree {
         assert!(size(&tree) == 4, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_less_than() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        remove_nodes_less_than(&mut tree, 3);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
     }
 }
