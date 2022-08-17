@@ -557,80 +557,12 @@ module flow::splay_tree {
     }
 
     public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): (u64, &V) {
-        let maybe_root = get_root(tree);
-
-        assert!(!iter.is_done, EITER_ALREADY_DONE);
-        assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
-
-        let root = unguard(maybe_root);
-
         if (!iter.reverse) {
-            if (vector::is_empty(&iter.stack)) {
-                let current = root;
-                traverse_left(tree, &mut iter.stack, current);
-                let idx = top(&iter.stack);
-                return next_check_return(tree, iter, idx)
-            };
-            let current = top(&iter.stack);
-            let maybe_right = get_right(tree, current);
-            if (!is_sentinel(maybe_right)) {
-                current = unguard(maybe_right);
-                traverse_left(tree, &mut iter.stack, current);
-
-                let idx = top(&iter.stack);
-                return next_check_return(tree, iter, idx)
-            } else {
-                let current = vector::pop_back(&mut iter.stack);
-                let parent = top(&iter.stack);
-
-                while (current != root) {
-                    let maybe_parent_left = get_left(tree, parent);
-                    let maybe_parent_right = get_right(tree, parent);
-
-                    if (!is_sentinel(maybe_parent_left) && unguard(maybe_parent_left) == current) {
-                        return next_check_return(tree, iter, parent)
-                    } else if (!is_sentinel(maybe_parent_right) && unguard(maybe_parent_right) == current) {
-                        current = vector::pop_back(&mut iter.stack);
-                        parent = top(&iter.stack);
-                    } else {
-                        abort EPARENT_CHILD_MISMATCH
-                    };
-                };
-                abort EITER_ALREADY_DONE
-            }
+            let idx = next_node_idx(tree, iter);
+            return next_check_return(tree, iter, idx)
         } else {
-            if (vector::is_empty(&iter.stack)) {
-                let current = root;
-                traverse_right(tree, &mut iter.stack, current);
-                let idx = top(&iter.stack);
-                return next_check_return(tree, iter, idx)
-            };
-            let current = top(&iter.stack);
-            let maybe_left = get_left(tree, current);
-            if (!is_sentinel(maybe_left)) {
-                current = unguard(maybe_left);
-                traverse_right(tree, &mut iter.stack, current);
-                let idx = top(&iter.stack);
-                return next_check_return(tree, iter, idx)
-            } else {
-                let current = vector::pop_back(&mut iter.stack);
-                let parent = top(&iter.stack);
-
-                while (current != root) {
-                    let maybe_parent_left = get_left(tree, parent);
-                    let maybe_parent_right = get_right(tree, parent);
-
-                    if (!is_sentinel(maybe_parent_right) && unguard(maybe_parent_right) == current) {
-                        return next_check_return(tree, iter, parent)
-                    } else if (!is_sentinel(maybe_parent_left) && unguard(maybe_parent_right) == current) {
-                        current = vector::pop_back(&mut iter.stack);
-                        parent = top(&iter.stack);
-                    } else {
-                        abort EPARENT_CHILD_MISMATCH
-                    };
-                };
-                abort EITER_ALREADY_DONE
-            }
+            let idx = prev_node_idx(tree, iter);
+            return next_check_return(tree, iter, idx)
         }
     }
 
@@ -668,7 +600,7 @@ module flow::splay_tree {
         }
     }
 
-    fun next_node_idx<V: store + drop>(tree: &mut SplayTree<V>, iter: &mut Iterator): u64 {
+    fun next_node_idx<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): u64 {
         let maybe_root = get_root(tree);
 
         assert!(!iter.is_done, EITER_ALREADY_DONE);
@@ -711,7 +643,7 @@ module flow::splay_tree {
         }
     }
 
-    fun prev_node_idx<V: store + drop>(tree: &mut SplayTree<V>, iter: &mut Iterator): u64 {
+    fun prev_node_idx<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): u64 {
         let maybe_root = get_root(tree);
 
         assert!(!iter.is_done, EITER_ALREADY_DONE);
