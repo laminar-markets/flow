@@ -680,10 +680,6 @@ module flow::splay_tree {
     }
 
     public fun remove_nodes_less_than<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
-        let maybe_root = get_root(tree);
-        assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
-        let root = unguard(maybe_root);
-
         let iter = init_iterator(false);
         let nodes_to_remove = vector::empty<u64>();
 
@@ -696,25 +692,68 @@ module flow::splay_tree {
             } else {
                 let current = vector::pop_back(&mut iter.stack);
                 assert!(current == idx, EINVALID_STATE);
+
+                let child = current;
                 set_left(tree, idx, sentinel());
 
-                while (current != root) {
-                    let parent = top(&mut iter.stack);
-
+                while (!vector::is_empty(&iter.stack)) {
+                    let parent = top(&iter.stack);
                     let maybe_left = get_left(tree, parent);
                     let maybe_right = get_right(tree, parent);
 
                     if (!is_sentinel(maybe_left) && unguard(maybe_left) == current) {
-                        set_left(tree, parent, guard(current));
-                        vector::append(&mut tree.removed_nodes, nodes_to_remove);
-                        return
+                        set_left(tree, parent, guard(child));
+                        current = vector::pop_back(&mut iter.stack);
+                        child = current;
                     } else if (!is_sentinel(maybe_right) && unguard(maybe_right) == current) {
                         current = vector::pop_back(&mut iter.stack);
                     } else {
                         abort EPARENT_CHILD_MISMATCH
-                    }
+                    };
                 };
-                set_root(tree, guard(idx));
+                vector::append(&mut tree.removed_nodes, nodes_to_remove);
+                set_root(tree, guard(child));
+                return
+            };
+            check_is_done(tree, &mut iter, idx);
+        }
+    }
+
+    public fun remove_nodes_greater_than<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
+        let iter = init_iterator(true);
+        let nodes_to_remove = vector::empty<u64>();
+
+        while (has_next(&iter)) {
+            let idx = prev_node_idx(tree, &mut iter);
+            let node = get_node_by_index(tree, idx);
+
+            if (key < node.key) {
+                vector::push_back(&mut nodes_to_remove, idx);
+            } else {
+                let current = vector::pop_back(&mut iter.stack);
+                assert!(current == idx, EINVALID_STATE);
+
+                let child = current;
+                set_right(tree, idx, sentinel());
+
+                while (!vector::is_empty(&iter.stack)) {
+                    let parent = top(&iter.stack);
+                    let maybe_left = get_left(tree, parent);
+                    let maybe_right = get_right(tree, parent);
+
+                    if (!is_sentinel(maybe_left) && unguard(maybe_left) == current) {
+                        current = vector::pop_back(&mut iter.stack);
+                    } else if (!is_sentinel(maybe_right) && unguard(maybe_right) == current) {
+                        set_right(tree, parent, guard(child));
+                        current = vector::pop_back(&mut iter.stack);
+                        child = current;
+                    } else {
+                        abort EPARENT_CHILD_MISMATCH
+                    };
+                };
+                vector::append(&mut tree.removed_nodes, nodes_to_remove);
+                set_root(tree, guard(child));
+                return
             };
             check_is_done(tree, &mut iter, idx);
         }
@@ -1449,7 +1488,7 @@ module flow::splay_tree {
     }
 
     #[test]
-    fun test_remove_nodes_less_than() {
+    fun test_remove_nodes_less_than_1() {
         let tree = init_tree<u64>(true);
 
         insert(&mut tree, 0, 0);
@@ -1467,5 +1506,110 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_less_than_2() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 2, 2);
+
+        remove_nodes_less_than(&mut tree, 3);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_less_than_3() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+
+        remove_nodes_less_than(&mut tree, 3);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_greater_than_1() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        remove_nodes_greater_than(&mut tree, 2);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_greater_than_2() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        remove_nodes_greater_than(&mut tree, 2);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_greater_than_3() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+
+        remove_nodes_greater_than(&mut tree, 2);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
     }
 }
