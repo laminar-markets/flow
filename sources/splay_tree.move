@@ -532,7 +532,8 @@ module flow::splay_tree {
         };
     }
 
-    fun next_check_return<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64): (u64, &V) {
+    fun check_is_done<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64) {
+        assert!(!is_sentinel(tree.min), EINVALID_STATE);
         assert!(!is_sentinel(tree.max), EINVALID_STATE);
 
         if (!iter.reverse) {
@@ -543,7 +544,6 @@ module flow::splay_tree {
             if (node.key == max_node_key) {
                 iter.is_done = true;
             };
-            (node.key, &node.value)
         } else {
             let min = unguard(tree.min);
             let min_node_key = get_node_by_index(tree, min).key;
@@ -552,51 +552,34 @@ module flow::splay_tree {
             if (node.key == min_node_key) {
                 iter.is_done = true;
             };
-            (node.key, &node.value)
         }
     }
 
     public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): (u64, &V) {
         if (!iter.reverse) {
             let idx = next_node_idx(tree, iter);
-            return next_check_return(tree, iter, idx)
+            check_is_done(tree, iter, idx);
+            let node = get_node_by_index(tree, idx);
+            return (node.key, &node.value)
         } else {
             let idx = prev_node_idx(tree, iter);
-            return next_check_return(tree, iter, idx)
-        }
-    }
-
-    fun next_check_return_mut<V: store + drop>(tree: &mut SplayTree<V>, iter: &mut Iterator, idx: u64): (u64, &mut V) {
-        assert!(!is_sentinel(tree.max), EINVALID_STATE);
-
-        if (!iter.reverse) {
-            let max = unguard(tree.max);
-            let max_node_key = get_node_by_index(tree, max).key;
-            let node = get_mut_node_by_index(tree, idx);
-
-            if (node.key == max_node_key) {
-                iter.is_done = true;
-            };
-            (node.key, &mut node.value)
-        } else {
-            let min = unguard(tree.min);
-            let min_node_key = get_node_by_index(tree, min).key;
-            let node = get_mut_node_by_index(tree, idx);
-
-            if (node.key == min_node_key) {
-                iter.is_done = true;
-            };
-            (node.key, &mut node.value)
+            check_is_done(tree, iter, idx);
+            let node = get_node_by_index(tree, idx);
+            return (node.key, &node.value)
         }
     }
 
     public fun next_mut<V: store + drop>(tree: &mut SplayTree<V>, iter: &mut Iterator): (u64, &mut V) {
         if (!iter.reverse) {
             let idx = next_node_idx(tree, iter);
-            return next_check_return_mut(tree, iter, idx)
+            check_is_done(tree, iter, idx);
+            let node = get_mut_node_by_index(tree, idx);
+            return (node.key, &mut node.value)
         } else {
             let idx = prev_node_idx(tree, iter);
-            return next_check_return_mut(tree, iter, idx)
+            check_is_done(tree, iter, idx);
+            let node = get_mut_node_by_index(tree, idx);
+            return (node.key, &mut node.value)
         }
     }
 
