@@ -1183,7 +1183,6 @@ module flow::splay_tree {
     }
 
     #[test]
-    #[expected_failure(abort_code = 5)]
     fun test_splay_root() {
         let tree = init_tree<u64>(true);
 
@@ -1198,7 +1197,12 @@ module flow::splay_tree {
         let root_node = get_node_by_index(&tree, root);
         assert!(root_node.key == 5, ENO_MESSAGE);
 
+        // nothing should happen
         splay(&mut tree, 5);
+
+        let root = unguard(get_root(&tree));
+        let root_node = get_node_by_index(&tree, root);
+        assert!(root_node.key == 5, ENO_MESSAGE);
     }
 
     #[test]
