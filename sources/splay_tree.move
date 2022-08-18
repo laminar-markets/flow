@@ -159,7 +159,7 @@ module flow::splay_tree {
         let root = unguard(maybe_root);
         let root_node = get_node_by_index(tree, root);
 
-        // splay operation cannot be performed on root node cannot be splayed
+        // splay operation cannot be performed on root node
         if (key == root_node.key) {
             return
         };

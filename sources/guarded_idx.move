@@ -1,6 +1,8 @@
 module flow::guarded_idx {
     use std::option::{Self, Option};
 
+    friend flow::splay_tree;
+
     const ENO_MESSAGE: u64 = 0;
 
     // invalid argument provided
@@ -12,19 +14,19 @@ module flow::guarded_idx {
         value: u64
     }
 
-    public fun guard(value: u64): GuardedIdx {
+    public(friend) fun guard(value: u64): GuardedIdx {
         assert!(value != SENTINEL_VALUE, EINVALID_ARGUMENT);
         GuardedIdx {
             value
         }
     }
 
-    public fun unguard(guard: GuardedIdx): u64 {
+    public(friend) fun unguard(guard: GuardedIdx): u64 {
         assert!(!is_sentinel(guard), EINVALID_ARGUMENT);
         guard.value
     }
 
-    public fun try_guard(value: Option<u64>): GuardedIdx {
+    public(friend) fun try_guard(value: Option<u64>): GuardedIdx {
         let v = option::destroy_with_default(value, SENTINEL_VALUE);
         if (v != SENTINEL_VALUE) {
             guard(v)
@@ -33,7 +35,7 @@ module flow::guarded_idx {
         }
     }
 
-    public fun try_unguard(guard: GuardedIdx): Option<u64> {
+    public(friend) fun try_unguard(guard: GuardedIdx): Option<u64> {
         if (guard.value == SENTINEL_VALUE) {
             option::none()
         } else {
@@ -41,13 +43,13 @@ module flow::guarded_idx {
         }
     }
 
-    public fun sentinel(): GuardedIdx {
+    public(friend) fun sentinel(): GuardedIdx {
         GuardedIdx {
             value: SENTINEL_VALUE
         }
     }
 
-    public fun is_sentinel(guard: GuardedIdx): bool {
+    public(friend) fun is_sentinel(guard: GuardedIdx): bool {
         guard.value == SENTINEL_VALUE
     }
 
