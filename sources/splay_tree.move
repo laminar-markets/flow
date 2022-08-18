@@ -4,6 +4,10 @@ module flow::splay_tree {
     use flow::guarded_idx::{GuardedIdx, guard, unguard, sentinel, is_sentinel};
     use flow::vector_utils::{top, pop};
 
+    // *************************************************************************
+    // * Error codes                                                           *
+    // *************************************************************************
+
     const ENO_MESSAGE: u64 = 0;
     // invalid argument provided
     const EINVALID_ARGUMENT: u64 = 1;
@@ -17,6 +21,10 @@ module flow::splay_tree {
     const EINVALID_STATE: u64 = 5;
     // iterator already completed
     const EITER_ALREADY_DONE: u64 = 6;
+
+    // *************************************************************************
+    // * Structs                                                               *
+    // *************************************************************************
 
     struct Node<V: store + drop> has store, drop {
         key: u64,
@@ -704,6 +712,10 @@ module flow::splay_tree {
             abort EITER_ALREADY_DONE
         }
     }
+
+    // *************************************************************************
+    // * Unit tests                                                            *
+    // *************************************************************************
 
     #[test]
     fun test_init_tree() {
