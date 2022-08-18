@@ -3,6 +3,7 @@ name = "Flow"
 version = "0.0.0"
 
 [dependencies]
+AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "971c83dd15201e279c2c03d974468328509529a9" }
 MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "971c83dd15201e279c2c03d974468328509529a9" }
 
 [addresses]

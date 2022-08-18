@@ -22,6 +22,9 @@ module flow::splay_tree {
     // iterator already completed
     const EITER_ALREADY_DONE: u64 = 6;
 
+    // vector is empty
+    const EVECTOR_EMPTY: u64 = 7;
+
     const SENTINEL_VALUE: u64 = 0xffffffffffffffff;
 
     struct GuardedIdx has store, drop, copy {
@@ -511,7 +514,11 @@ module flow::splay_tree {
     }
 
     fun top<T: copy>(v: &vector<T>): T {
-        *vector::borrow(v, vector::length(v) - 1)
+        let len = vector::length(v);
+        if (len <= 0) {
+            abort EVECTOR_EMPTY
+        };
+        *vector::borrow(v, len - 1)
     }
 
     fun traverse_left<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
@@ -532,7 +539,8 @@ module flow::splay_tree {
         };
     }
 
-    fun next_check_return<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64): (u64, &V) {
+    fun check_is_done<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64) {
+        assert!(!is_sentinel(tree.min), EINVALID_STATE);
         assert!(!is_sentinel(tree.max), EINVALID_STATE);
 
         if (!iter.reverse) {
@@ -543,7 +551,6 @@ module flow::splay_tree {
             if (node.key == max_node_key) {
                 iter.is_done = true;
             };
-            (node.key, &node.value)
         } else {
             let min = unguard(tree.min);
             let min_node_key = get_node_by_index(tree, min).key;
@@ -552,113 +559,38 @@ module flow::splay_tree {
             if (node.key == min_node_key) {
                 iter.is_done = true;
             };
-            (node.key, &node.value)
         }
     }
 
     public fun next<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): (u64, &V) {
-        let maybe_root = get_root(tree);
-
-        assert!(!iter.is_done, EITER_ALREADY_DONE);
-        assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
-
-        let root = unguard(maybe_root);
-
         if (!iter.reverse) {
-            if (vector::is_empty(&iter.stack)) {
-                let current = root;
-                traverse_left(tree, iter, current);
-                let idx = top(&iter.stack);
-                return next_check_return(tree, iter, idx)
-            };
-            let current = top(&iter.stack);
-            let maybe_right = get_right(tree, current);
-            if (!is_sentinel(maybe_right)) {
-                current = unguard(maybe_right);
-                traverse_left(tree, iter, current);
-
-                let idx = top(&iter.stack);
-                return next_check_return(tree, iter, idx)
-            } else {
-                let current = vector::pop_back(&mut iter.stack);
-                let parent = top(&iter.stack);
-
-                while (current != root) {
-                    let maybe_parent_left = get_left(tree, parent);
-                    let maybe_parent_right = get_right(tree, parent);
-
-                    if (!is_sentinel(maybe_parent_left) && unguard(maybe_parent_left) == current) {
-                        return next_check_return(tree, iter, parent)
-                    } else if (!is_sentinel(maybe_parent_right) && unguard(maybe_parent_right) == current) {
-                        current = vector::pop_back(&mut iter.stack);
-                        parent = top(&iter.stack);
-                    } else {
-                        abort EPARENT_CHILD_MISMATCH
-                    };
-                };
-                abort EITER_ALREADY_DONE
-            }
+            let idx = next_node_idx(tree, iter);
+            check_is_done(tree, iter, idx);
+            let node = get_node_by_index(tree, idx);
+            return (node.key, &node.value)
         } else {
-            if (vector::is_empty(&iter.stack)) {
-                let current = root;
-                traverse_right(tree, iter, current);
-                let idx = top(&iter.stack);
-                return next_check_return(tree, iter, idx)
-            };
-            let current = top(&iter.stack);
-            let maybe_left = get_left(tree, current);
-            if (!is_sentinel(maybe_left)) {
-                current = unguard(maybe_left);
-                traverse_right(tree, iter, current);
-                let idx = top(&iter.stack);
-                return next_check_return(tree, iter, idx)
-            } else {
-                let current = vector::pop_back(&mut iter.stack);
-                let parent = top(&iter.stack);
-
-                while (current != root) {
-                    let maybe_parent_left = get_left(tree, parent);
-                    let maybe_parent_right = get_right(tree, parent);
-
-                    if (!is_sentinel(maybe_parent_right) && unguard(maybe_parent_right) == current) {
-                        return next_check_return(tree, iter, parent)
-                    } else if (!is_sentinel(maybe_parent_left) && unguard(maybe_parent_right) == current) {
-                        current = vector::pop_back(&mut iter.stack);
-                        parent = top(&iter.stack);
-                    } else {
-                        abort EPARENT_CHILD_MISMATCH
-                    };
-                };
-                abort EITER_ALREADY_DONE
-            }
-        }
-    }
-
-    fun next_check_return_mut<V: store + drop>(tree: &mut SplayTree<V>, iter: &mut Iterator, idx: u64): (u64, &mut V) {
-        assert!(!is_sentinel(tree.max), EINVALID_STATE);
-
-        if (!iter.reverse) {
-            let max = unguard(tree.max);
-            let max_node_key = get_node_by_index(tree, max).key;
-            let node = get_mut_node_by_index(tree, idx);
-
-            if (node.key == max_node_key) {
-                iter.is_done = true;
-            };
-            (node.key, &mut node.value)
-        } else {
-            let min = unguard(tree.min);
-            let min_node_key = get_node_by_index(tree, min).key;
-            let node = get_mut_node_by_index(tree, idx);
-
-            if (node.key == min_node_key) {
-                iter.is_done = true;
-            };
-            (node.key, &mut node.value)
+            let idx = prev_node_idx(tree, iter);
+            check_is_done(tree, iter, idx);
+            let node = get_node_by_index(tree, idx);
+            return (node.key, &node.value)
         }
     }
 
     public fun next_mut<V: store + drop>(tree: &mut SplayTree<V>, iter: &mut Iterator): (u64, &mut V) {
+        if (!iter.reverse) {
+            let idx = next_node_idx(tree, iter);
+            check_is_done(tree, iter, idx);
+            let node = get_mut_node_by_index(tree, idx);
+            return (node.key, &mut node.value)
+        } else {
+            let idx = prev_node_idx(tree, iter);
+            check_is_done(tree, iter, idx);
+            let node = get_mut_node_by_index(tree, idx);
+            return (node.key, &mut node.value)
+        }
+    }
+
+    fun next_node_idx<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): u64 {
         let maybe_root = get_root(tree);
 
         assert!(!iter.is_done, EITER_ALREADY_DONE);
@@ -666,78 +598,165 @@ module flow::splay_tree {
 
         let root = unguard(maybe_root);
 
-        if (!iter.reverse) {
-            if (vector::is_empty(&iter.stack)) {
-                let current = root;
-                traverse_left(tree, iter, current);
-                let idx = top(&iter.stack);
-                return next_check_return_mut(tree, iter, idx)
-            };
-            let current = top(&iter.stack);
-            let maybe_right = get_right(tree, current);
-            if (!is_sentinel(maybe_right)) {
-                current = unguard(maybe_right);
-                traverse_left(tree, iter, current);
+        if (vector::is_empty(&iter.stack)) {
+            let current = root;
+            traverse_left(tree, iter, current);
+            let idx = top(&iter.stack);
+            return idx
+        };
+        let current = top(&iter.stack);
+        let maybe_right = get_right(tree, current);
+        if (!is_sentinel(maybe_right)) {
+            current = unguard(maybe_right);
+            traverse_left(tree, iter, current);
 
-                let idx = top(&iter.stack);
-                return next_check_return_mut(tree, iter, idx)
-            } else {
-                let current = vector::pop_back(&mut iter.stack);
-                let parent = top(&iter.stack);
-
-                while (current != root) {
-                    let maybe_parent_left = get_left(tree, parent);
-                    let maybe_parent_right = get_right(tree, parent);
-
-                    if (!is_sentinel(maybe_parent_left) && unguard(maybe_parent_left) == current) {
-                        return next_check_return_mut(tree, iter, parent)
-                    } else if (!is_sentinel(maybe_parent_right) && unguard(maybe_parent_right) == current) {
-                        current = vector::pop_back(&mut iter.stack);
-                        parent = top(&iter.stack);
-                    } else {
-                        abort EPARENT_CHILD_MISMATCH
-                    };
-                };
-                abort EITER_ALREADY_DONE
-            }
+            let idx = top(&iter.stack);
+            return idx
         } else {
-            if (vector::is_empty(&iter.stack)) {
-                let current = root;
-                traverse_right(tree, iter, current);
-                let idx = top(&iter.stack);
-                return next_check_return_mut(tree, iter, idx)
-            };
-            let current = top(&iter.stack);
-            let maybe_left = get_left(tree, current);
-            if (!is_sentinel(maybe_left)) {
-                current = unguard(maybe_left);
-                traverse_right(tree, iter, current);
-                let idx = top(&iter.stack);
-                return next_check_return_mut(tree, iter, idx)
-            } else {
-                let current = vector::pop_back(&mut iter.stack);
-                let parent = top(&iter.stack);
+            let current = vector::pop_back(&mut iter.stack);
+            let parent = top(&iter.stack);
 
-                while (current != root) {
-                    let maybe_parent_left = get_left(tree, parent);
-                    let maybe_parent_right = get_right(tree, parent);
+            while (current != root) {
+                let maybe_parent_left = get_left(tree, parent);
+                let maybe_parent_right = get_right(tree, parent);
 
-                    if (!is_sentinel(maybe_parent_right) && unguard(maybe_parent_right) == current) {
-                        return next_check_return_mut(tree, iter, parent)
-                    } else if (!is_sentinel(maybe_parent_left) && unguard(maybe_parent_right) == current) {
-                        current = vector::pop_back(&mut iter.stack);
-                        parent = top(&iter.stack);
-                    } else {
-                        abort EPARENT_CHILD_MISMATCH
-                    };
+                if (!is_sentinel(maybe_parent_left) && unguard(maybe_parent_left) == current) {
+                    return parent
+                } else if (!is_sentinel(maybe_parent_right) && unguard(maybe_parent_right) == current) {
+                    current = vector::pop_back(&mut iter.stack);
+                    parent = top(&iter.stack);
+                } else {
+                    abort EPARENT_CHILD_MISMATCH
                 };
-                abort EITER_ALREADY_DONE
-            }
+            };
+            abort EITER_ALREADY_DONE
+        }
+    }
+
+    fun prev_node_idx<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator): u64 {
+        let maybe_root = get_root(tree);
+
+        assert!(!iter.is_done, EITER_ALREADY_DONE);
+        assert!(!is_sentinel(maybe_root), ETREE_IS_EMPTY);
+
+        let root = unguard(maybe_root);
+
+        if (vector::is_empty(&iter.stack)) {
+            let current = root;
+            traverse_right(tree, iter, current);
+            let idx = top(&iter.stack);
+            return idx
+        };
+        let current = top(&iter.stack);
+        let maybe_left = get_left(tree, current);
+        if (!is_sentinel(maybe_left)) {
+            current = unguard(maybe_left);
+            traverse_right(tree, iter, current);
+            let idx = top(&iter.stack);
+            return idx
+        } else {
+            let current = vector::pop_back(&mut iter.stack);
+            let parent = top(&iter.stack);
+
+            while (current != root) {
+                let maybe_parent_left = get_left(tree, parent);
+                let maybe_parent_right = get_right(tree, parent);
+
+                if (!is_sentinel(maybe_parent_right) && unguard(maybe_parent_right) == current) {
+                    return parent
+                } else if (!is_sentinel(maybe_parent_left) && unguard(maybe_parent_right) == current) {
+                    current = vector::pop_back(&mut iter.stack);
+                    parent = top(&iter.stack);
+                } else {
+                    abort EPARENT_CHILD_MISMATCH
+                };
+            };
+            abort EITER_ALREADY_DONE
         }
     }
 
     public fun has_next(iter: &Iterator): bool {
         !iter.is_done
+    }
+
+    public fun remove_nodes_less_than<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
+        let iter = init_iterator(false);
+        let nodes_to_remove = vector::empty<u64>();
+
+        while (has_next(&iter)) {
+            let idx = next_node_idx(tree, &mut iter);
+            let node = get_node_by_index(tree, idx);
+
+            if (key > node.key) {
+                vector::push_back(&mut nodes_to_remove, idx);
+            } else {
+                let current = vector::pop_back(&mut iter.stack);
+                assert!(current == idx, EINVALID_STATE);
+
+                let child = current;
+                set_left(tree, idx, sentinel());
+
+                while (!vector::is_empty(&iter.stack)) {
+                    let parent = top(&iter.stack);
+                    let maybe_left = get_left(tree, parent);
+                    let maybe_right = get_right(tree, parent);
+
+                    if (!is_sentinel(maybe_left) && unguard(maybe_left) == current) {
+                        set_left(tree, parent, guard(child));
+                        current = vector::pop_back(&mut iter.stack);
+                        child = current;
+                    } else if (!is_sentinel(maybe_right) && unguard(maybe_right) == current) {
+                        current = vector::pop_back(&mut iter.stack);
+                    } else {
+                        abort EPARENT_CHILD_MISMATCH
+                    };
+                };
+                vector::append(&mut tree.removed_nodes, nodes_to_remove);
+                set_root(tree, guard(child));
+                return
+            };
+            check_is_done(tree, &mut iter, idx);
+        }
+    }
+
+    public fun remove_nodes_greater_than<V: store + drop>(tree: &mut SplayTree<V>, key: u64) {
+        let iter = init_iterator(true);
+        let nodes_to_remove = vector::empty<u64>();
+
+        while (has_next(&iter)) {
+            let idx = prev_node_idx(tree, &mut iter);
+            let node = get_node_by_index(tree, idx);
+
+            if (key < node.key) {
+                vector::push_back(&mut nodes_to_remove, idx);
+            } else {
+                let current = vector::pop_back(&mut iter.stack);
+                assert!(current == idx, EINVALID_STATE);
+
+                let child = current;
+                set_right(tree, idx, sentinel());
+
+                while (!vector::is_empty(&iter.stack)) {
+                    let parent = top(&iter.stack);
+                    let maybe_left = get_left(tree, parent);
+                    let maybe_right = get_right(tree, parent);
+
+                    if (!is_sentinel(maybe_left) && unguard(maybe_left) == current) {
+                        current = vector::pop_back(&mut iter.stack);
+                    } else if (!is_sentinel(maybe_right) && unguard(maybe_right) == current) {
+                        set_right(tree, parent, guard(child));
+                        current = vector::pop_back(&mut iter.stack);
+                        child = current;
+                    } else {
+                        abort EPARENT_CHILD_MISMATCH
+                    };
+                };
+                vector::append(&mut tree.removed_nodes, nodes_to_remove);
+                set_root(tree, guard(child));
+                return
+            };
+            check_is_done(tree, &mut iter, idx);
+        }
     }
 
     #[test]
@@ -1124,7 +1143,6 @@ module flow::splay_tree {
     }
 
     #[test]
-    #[expected_failure(abort_code = 5)]
     fun test_splay_root() {
         let tree = init_tree<u64>(true);
 
@@ -1139,7 +1157,12 @@ module flow::splay_tree {
         let root_node = get_node_by_index(&tree, root);
         assert!(root_node.key == 5, ENO_MESSAGE);
 
+        // nothing should happen
         splay(&mut tree, 5);
+
+        let root = unguard(get_root(&tree));
+        let root_node = get_node_by_index(&tree, root);
+        assert!(root_node.key == 5, ENO_MESSAGE);
     }
 
     #[test]
@@ -1462,5 +1485,131 @@ module flow::splay_tree {
         assert!(size(&tree) == 4, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_less_than_1() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        remove_nodes_less_than(&mut tree, 3);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_less_than_2() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 2, 2);
+
+        remove_nodes_less_than(&mut tree, 3);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_less_than_3() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+
+        remove_nodes_less_than(&mut tree, 3);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+        assert!(!contains(&tree, 2), ENO_MESSAGE);
+        assert!(contains(&tree, 3), ENO_MESSAGE);
+        assert!(contains(&tree, 4), ENO_MESSAGE);
+        assert!(contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_greater_than_1() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 5, 5);
+
+        remove_nodes_greater_than(&mut tree, 2);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_greater_than_2() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 3, 3);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 1, 1);
+
+        remove_nodes_greater_than(&mut tree, 2);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_remove_nodes_greater_than_3() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 5, 5);
+        insert(&mut tree, 4, 4);
+        insert(&mut tree, 2, 2);
+        insert(&mut tree, 1, 1);
+        insert(&mut tree, 3, 3);
+
+        remove_nodes_greater_than(&mut tree, 2);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+        assert!(contains(&tree, 2), ENO_MESSAGE);
+        assert!(!contains(&tree, 3), ENO_MESSAGE);
+        assert!(!contains(&tree, 4), ENO_MESSAGE);
+        assert!(!contains(&tree, 5), ENO_MESSAGE);
     }
 }
