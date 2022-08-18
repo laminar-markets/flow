@@ -1,69 +1,23 @@
 module flow::splay_tree {
     use std::vector;
     use std::option::{Self, Option};
+    use flow::guarded_idx::{GuardedIdx, guard, unguard, sentinel, is_sentinel};
 
     const ENO_MESSAGE: u64 = 0;
-
-    // key not found in the splay tree
-    const EKEY_NOT_FOUND: u64 = 1;
-
-    // provided nodes were not a parent-child pair
-    const EPARENT_CHILD_MISMATCH: u64 = 2;
-
-    // tree has zero nodes
-    const ETREE_IS_EMPTY: u64 = 3;
-
-    // tree is in invalid state
-    const EINVALID_STATE: u64 = 4;
-
     // invalid argument provided
-    const EINVALID_ARGUMENT: u64 = 5;
-
+    const EINVALID_ARGUMENT: u64 = 1;
+    // key not found in the splay tree
+    const EKEY_NOT_FOUND: u64 = 2;
+    // provided nodes were not a parent-child pair
+    const EPARENT_CHILD_MISMATCH: u64 = 3;
+    // tree has zero nodes
+    const ETREE_IS_EMPTY: u64 = 4;
+    // tree is in invalid state
+    const EINVALID_STATE: u64 = 5;
     // iterator already completed
     const EITER_ALREADY_DONE: u64 = 6;
-
     // vector is empty
     const EVECTOR_EMPTY: u64 = 7;
-
-    const SENTINEL_VALUE: u64 = 0xffffffffffffffff;
-
-    struct GuardedIdx has store, drop, copy {
-        value: u64
-    }
-
-    fun guard(value: u64): GuardedIdx {
-        GuardedIdx {
-            value
-        }
-    }
-
-    fun unguard(guard: GuardedIdx): u64 {
-        assert!(!is_sentinel(guard), EINVALID_ARGUMENT);
-        guard.value
-    }
-
-    fun try_guard(value: Option<u64>): GuardedIdx {
-        guard(option::destroy_with_default(value, SENTINEL_VALUE))
-    }
-
-    fun try_unguard(guard: GuardedIdx): Option<u64> {
-        if (guard.value == SENTINEL_VALUE) {
-            option::none()
-        } else {
-            option::some(guard.value)
-        }
-    }
-
-    fun sentinel(): GuardedIdx {
-        GuardedIdx {
-            value: SENTINEL_VALUE
-        }
-    }
-
-    fun is_sentinel(guard: GuardedIdx): bool {
-        guard.value == SENTINEL_VALUE
-    }
-
 
     struct Node<V: store + drop> has store, drop {
         key: u64,
@@ -876,14 +830,14 @@ module flow::splay_tree {
     }
 
     #[test]
-    #[expected_failure(abort_code = 3)]
+    #[expected_failure(abort_code = 4)]
     fun test_min_empty() {
         let tree = init_tree<u64>(true);
         let _min = min(&tree);
     }
 
     #[test]
-    #[expected_failure(abort_code = 3)]
+    #[expected_failure(abort_code = 4)]
     fun test_max_empty() {
         let tree = init_tree<u64>(true);
         let _max = max(&tree);
