@@ -521,21 +521,21 @@ module flow::splay_tree {
         *vector::borrow(v, len - 1)
     }
 
-    fun traverse_left<V: store + drop>(tree: &SplayTree<V>, stack: &mut vector<u64>, parent_idx: u64) {
+    fun traverse_left<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
         let maybe_left = guard(parent_idx);
         while (!is_sentinel(maybe_left)) {
             let current = unguard(maybe_left);
             maybe_left = get_left(tree, current);
-            vector::push_back(stack, current);
+            vector::push_back(&mut iter.stack, current);
         };
     }
 
-    fun traverse_right<V: store + drop>(tree: &SplayTree<V>, stack: &mut vector<u64>, parent_idx: u64) {
+    fun traverse_right<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, parent_idx: u64) {
         let maybe_right = guard(parent_idx);
         while (!is_sentinel(maybe_right)) {
             let current = unguard(maybe_right);
             maybe_right = get_right(tree, current);
-            vector::push_back(stack, current);
+            vector::push_back(&mut iter.stack, current);
         };
     }
 
@@ -600,7 +600,7 @@ module flow::splay_tree {
 
         if (vector::is_empty(&iter.stack)) {
             let current = root;
-            traverse_left(tree, &mut iter.stack, current);
+            traverse_left(tree, iter, current);
             let idx = top(&iter.stack);
             return idx
         };
@@ -608,7 +608,7 @@ module flow::splay_tree {
         let maybe_right = get_right(tree, current);
         if (!is_sentinel(maybe_right)) {
             current = unguard(maybe_right);
-            traverse_left(tree, &mut iter.stack, current);
+            traverse_left(tree, iter, current);
 
             let idx = top(&iter.stack);
             return idx
@@ -643,7 +643,7 @@ module flow::splay_tree {
 
         if (vector::is_empty(&iter.stack)) {
             let current = root;
-            traverse_right(tree, &mut iter.stack, current);
+            traverse_right(tree, iter, current);
             let idx = top(&iter.stack);
             return idx
         };
@@ -651,7 +651,7 @@ module flow::splay_tree {
         let maybe_left = get_left(tree, current);
         if (!is_sentinel(maybe_left)) {
             current = unguard(maybe_left);
-            traverse_right(tree, &mut iter.stack, current);
+            traverse_right(tree, iter, current);
             let idx = top(&iter.stack);
             return idx
         } else {
