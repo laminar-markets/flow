@@ -25,7 +25,12 @@ module flow::guarded_idx {
     }
 
     public fun try_guard(value: Option<u64>): GuardedIdx {
-        guard(option::destroy_with_default(value, SENTINEL_VALUE))
+        let v = option::destroy_with_default(value, SENTINEL_VALUE);
+        if (v != SENTINEL_VALUE) {
+            guard(v)
+        } else {
+            sentinel()
+        }
     }
 
     public fun try_unguard(guard: GuardedIdx): Option<u64> {
@@ -44,5 +49,66 @@ module flow::guarded_idx {
 
     public fun is_sentinel(guard: GuardedIdx): bool {
         guard.value == SENTINEL_VALUE
+    }
+
+    #[test]
+    fun test_guard_value() {
+        let value = 1;
+        guard(value);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 1)]
+    fun test_guard_max_u64_fails() {
+        let value = SENTINEL_VALUE;
+        guard(value);
+    }
+
+    #[test]
+    fun test_unguard_value() {
+        let value = 1;
+        unguard(guard(value));
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 1)]
+    fun test_unguard_sentinel_fails() {
+        unguard(sentinel());
+    }
+
+    #[test]
+    fun test_is_sentinel() {
+        assert!(is_sentinel(sentinel()), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_is_not_sentinel() {
+        let value = 1;
+        assert!(!is_sentinel(guard(value)), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_try_guard_some() {
+        let guarded = try_guard(option::some(1));
+        assert!(unguard(guarded) == 1, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_try_guard_none() {
+        let guarded = try_guard(option::none<u64>());
+        assert!(is_sentinel(guarded), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_try_unguard_some() {
+        let value = 1;
+        let option = try_unguard(guard(value));
+        assert!(option::is_some(&option), ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_try_unguard_none() {
+        let option = try_unguard(sentinel());
+        assert!(option::is_none(&option), ENO_MESSAGE);
     }
 }
