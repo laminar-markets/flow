@@ -8,4 +8,4 @@ MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "a
 
 [addresses]
 std = "0x1"
-flow = "096136b1e0aa9b451462999a2bb070db289759821109f25a3d1aca990f064c81"
+flow = "_"
