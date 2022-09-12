@@ -119,8 +119,15 @@ module flow::splay_tree {
         if (guarded_idx::is_sentinel(maybe_root)) {
             assert!(size(tree) == 0, EINVALID_STATE);
             let node = init_node(key, value);
-            vector::push_back(&mut tree.nodes, node);
-            let root_idx = vector::length(&tree.nodes) - 1;
+
+            let root_idx;
+            if (vector::is_empty(&tree.removed_nodes)) {
+                root_idx = 0;
+                vector::push_back(&mut tree.nodes, node);
+            } else {
+                root_idx = vector_utils::pop<u64>(&mut tree.removed_nodes);
+                *vector::borrow_mut(&mut tree.nodes, root_idx) = node;
+            };
 
             set_root(tree, guarded_idx::guard(root_idx));
             update_min(tree, key, root_idx);
