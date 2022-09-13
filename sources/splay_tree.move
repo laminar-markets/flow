@@ -143,8 +143,8 @@ module flow::splay_tree {
             set_max_if_greater(tree, key, root_idx);
         } else {
             assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
-            assert!(!guarded_idx::is_sentinel(tree.min), EINVALID_STATE);
-            assert!(!guarded_idx::is_sentinel(tree.max), EINVALID_STATE);
+            assert!(!guarded_idx::is_sentinel(get_min(tree)), EINVALID_STATE);
+            assert!(!guarded_idx::is_sentinel(get_max(tree)), EINVALID_STATE);
 
             let root = guarded_idx::unguard(maybe_root);
 
@@ -163,16 +163,18 @@ module flow::splay_tree {
     }
 
     public fun min<V: store + drop>(tree: &SplayTree<V>): &V {
+        let maybe_min =  get_min(tree);
         assert!(!guarded_idx::is_sentinel(tree.root), ETREE_IS_EMPTY);
-        assert!(!guarded_idx::is_sentinel(tree.min), EINVALID_STATE);
-        let min_idx = guarded_idx::unguard(tree.min);
+        assert!(!guarded_idx::is_sentinel(maybe_min), EINVALID_STATE);
+        let min_idx = guarded_idx::unguard(maybe_min);
         &get_node_by_index(tree, min_idx).value
     }
 
     public fun max<V: store + drop>(tree: &SplayTree<V>): &V {
+        let maybe_max = get_max(tree);
         assert!(!guarded_idx::is_sentinel(tree.root), ETREE_IS_EMPTY);
-        assert!(!guarded_idx::is_sentinel(tree.max), EINVALID_STATE);
-        let max_idx = guarded_idx::unguard(tree.max);
+        assert!(!guarded_idx::is_sentinel(maybe_max), EINVALID_STATE);
+        let max_idx = guarded_idx::unguard(maybe_max);
         &get_node_by_index(tree, max_idx).value
     }
 
@@ -350,8 +352,16 @@ module flow::splay_tree {
         tree.root = update_to;
     }
 
+    fun get_min<V: store + drop>(tree: &SplayTree<V>): GuardedIdx {
+        tree.min
+    }
+
     fun set_min<V: store + drop>(tree: &mut SplayTree<V>, update_to: GuardedIdx) {
         tree.min = update_to;
+    }
+
+    fun get_max<V: store + drop>(tree: &SplayTree<V>): GuardedIdx {
+        tree.max
     }
 
     fun set_max<V: store + drop>(tree: &mut SplayTree<V>, update_to: GuardedIdx) {
@@ -550,10 +560,11 @@ module flow::splay_tree {
     }
 
     fun set_min_if_smaller<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
-        if (guarded_idx::is_sentinel(tree.min)) {
+        let maybe_min = get_min(tree);
+        if (guarded_idx::is_sentinel(maybe_min)) {
             set_min(tree, guarded_idx::guard(idx));
         } else {
-            let min = guarded_idx::unguard(tree.min);
+            let min = guarded_idx::unguard(maybe_min);
             let min_node = get_node_by_index(tree, min);
 
             if (key < min_node.key) {
@@ -563,10 +574,11 @@ module flow::splay_tree {
     }
 
     fun set_max_if_greater<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
-        if (guarded_idx::is_sentinel(tree.max)) {
+        let maybe_max = get_max(tree);
+        if (guarded_idx::is_sentinel(maybe_max)) {
             set_max(tree, guarded_idx::guard(idx));
         } else {
-            let max = guarded_idx::unguard(tree.max);
+            let max = guarded_idx::unguard(maybe_max);
             let max_node = get_node_by_index(tree, max);
 
             if (key > max_node.key) {
@@ -662,11 +674,13 @@ module flow::splay_tree {
     }
 
     fun check_is_done<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64) {
-        assert!(!guarded_idx::is_sentinel(tree.min), EINVALID_STATE);
-        assert!(!guarded_idx::is_sentinel(tree.max), EINVALID_STATE);
+        let maybe_min = get_min(tree);
+        let maybe_max = get_max(tree);
+        assert!(!guarded_idx::is_sentinel(maybe_min), EINVALID_STATE);
+        assert!(!guarded_idx::is_sentinel(maybe_max), EINVALID_STATE);
 
         if (!iter.reverse) {
-            let max = guarded_idx::unguard(tree.max);
+            let max = guarded_idx::unguard(maybe_max);
             let max_node_key = get_node_by_index(tree, max).key;
             let node = get_node_by_index(tree, idx);
 
@@ -674,7 +688,7 @@ module flow::splay_tree {
                 iter.is_done = true;
             };
         } else {
-            let min = guarded_idx::unguard(tree.min);
+            let min = guarded_idx::unguard(maybe_min);
             let min_node_key = get_node_by_index(tree, min).key;
             let node = get_node_by_index(tree, idx);
 
