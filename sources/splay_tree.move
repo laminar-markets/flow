@@ -1009,10 +1009,14 @@ module flow::splay_tree {
         insert(&mut tree, 0, 0);
         assert!(contains(&tree, 0), ENO_MESSAGE);
         assert!(size(&tree) == 1, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 0, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         assert!(!contains(&tree, 0), ENO_MESSAGE);
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
     }
 
     #[test]
@@ -1024,12 +1028,16 @@ module flow::splay_tree {
         assert!(contains(&tree, 0), ENO_MESSAGE);
         assert!(contains(&tree, 1), ENO_MESSAGE);
         assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
         assert!(!contains(&tree, 0), ENO_MESSAGE);
         assert!(!contains(&tree, 1), ENO_MESSAGE);
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
     }
 
     #[test]
@@ -1049,7 +1057,10 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 6, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
@@ -1064,7 +1075,10 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
     }
 
     #[test]
@@ -1084,7 +1098,10 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 6, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
@@ -1099,7 +1116,10 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
     }
 
     #[test]
@@ -1119,7 +1139,10 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 6, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
@@ -1134,7 +1157,10 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
     }
 
     #[test]
@@ -1475,19 +1501,29 @@ module flow::splay_tree {
 
         insert(&mut tree, 0, 0);
         assert!(size(&tree) == 1, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 0, ENO_MESSAGE);
 
         insert(&mut tree, 1, 1);
         assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         assert!(size(&tree) == 1, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
 
+        assert!(*min(&tree) == 1, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
+
         insert(&mut tree, 0, 0);
         assert!(size(&tree) == 2, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 0, ENO_MESSAGE);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
     }
 
     #[test]
@@ -1498,21 +1534,29 @@ module flow::splay_tree {
         insert(&mut tree, 2, 2);
         insert(&mut tree, 1, 1);
         assert!(size(&tree) == 3, ENO_MESSAGE);
+        assert!(*min(&tree) == 1, ENO_MESSAGE);
+        assert!(*max(&tree) == 3, ENO_MESSAGE);
 
         insert(&mut tree, 4, 4);
         insert(&mut tree, 0, 0);
         assert!(size(&tree) == 5, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 4, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
         assert!(size(&tree) == 3, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 2, ENO_MESSAGE);
+        assert!(*max(&tree) == 4, ENO_MESSAGE);
 
         insert(&mut tree, 0, 0);
         assert!(size(&tree) == 4, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 4, ENO_MESSAGE);
     }
 
     #[test]
@@ -1534,6 +1578,9 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 3, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
     }
 
     #[test]
@@ -1555,6 +1602,9 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 3, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
     }
 
     #[test]
@@ -1576,6 +1626,9 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 3, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
     }
 
     #[test]
@@ -1597,6 +1650,9 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 2, ENO_MESSAGE);
     }
 
     #[test]
@@ -1618,6 +1674,9 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 2, ENO_MESSAGE);
     }
 
     #[test]
@@ -1639,5 +1698,8 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 2, ENO_MESSAGE);
     }
 }
