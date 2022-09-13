@@ -111,7 +111,15 @@ module flow::splay_tree {
         assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
 
         let root = guarded_idx::unguard(maybe_root);
-        remove_from_subtree(tree, root, option::none<u64>(), key);
+
+        if (size(tree) == 1) {
+            remove_node(tree, root, option::none<u64>());
+            set_root(tree, guarded_idx::sentinel());
+            set_min(tree, guarded_idx::sentinel());
+            set_max(tree, guarded_idx::sentinel());
+        } else {
+            remove_from_subtree(tree, root, option::none<u64>(), key);
+        }
     }
 
     public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
@@ -130,8 +138,8 @@ module flow::splay_tree {
             };
 
             set_root(tree, guarded_idx::guard(root_idx));
-            update_min(tree, key, root_idx);
-            update_max(tree, key, root_idx);
+            set_min_if_smaller(tree, key, root_idx);
+            set_max_if_greater(tree, key, root_idx);
         } else {
             assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
             assert!(!guarded_idx::is_sentinel(tree.min), EINVALID_STATE);
@@ -146,8 +154,8 @@ module flow::splay_tree {
                 idx = vector_utils::pop<u64>(&mut tree.removed_nodes);
             };
 
-            update_min(tree, key, idx);
-            update_max(tree, key, idx);
+            set_min_if_smaller(tree, key, idx);
+            set_max_if_greater(tree, key, idx);
 
             insert_child(tree, root, option::none<u64>(), idx, key, value);
         }
@@ -339,6 +347,14 @@ module flow::splay_tree {
         tree.root = update_to;
     }
 
+    fun set_min<V: store + drop>(tree: &mut SplayTree<V>, update_to: GuardedIdx) {
+        tree.min = update_to;
+    }
+
+    fun set_max<V: store + drop>(tree: &mut SplayTree<V>, update_to: GuardedIdx) {
+        tree.max = update_to;
+    }
+
     fun get_node_by_index<V: store + drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
         vector::borrow(&tree.nodes, idx)
     }
@@ -449,6 +465,8 @@ module flow::splay_tree {
         let node = get_node_by_index(tree, idx);
         if (key == node.key) {
             remove_node(tree, idx, parent_idx);
+            update_min(tree);
+            update_max(tree);
         } else if (key < node.key && !guarded_idx::is_sentinel(node.left)) {
             remove_from_subtree(tree, guarded_idx::unguard(node.left), option::some(idx), key);
         } else if (key > node.key && !guarded_idx::is_sentinel(node.right)) {
@@ -500,28 +518,68 @@ module flow::splay_tree {
         }
     }
 
-    fun update_min<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
+    fun update_min<V: store + drop>(tree: &mut SplayTree<V>) {
+        let maybe_root = get_root(tree);
+        assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
+
+        let idx = guarded_idx::unguard(maybe_root);
+        let maybe_left = get_left(tree, idx);
+
+        while (!guarded_idx::is_sentinel(maybe_left)) {
+            idx = guarded_idx::unguard(maybe_left);
+            maybe_left = get_left(tree, idx);
+        };
+
+        let node = get_node_by_index(tree, idx);
+        let min = guarded_idx::unguard(tree.min);
+        let min_node = get_node_by_index(tree, min);
+
+        assert!(idx == min || node.key < min_node.key, EINVALID_STATE);
+        set_min(tree, guarded_idx::guard(idx));
+    }
+
+    fun update_max<V: store + drop>(tree: &mut SplayTree<V>) {
+        let maybe_root = get_root(tree);
+        assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
+
+        let idx = guarded_idx::unguard(maybe_root);
+        let maybe_right = get_right(tree, idx);
+
+        while (!guarded_idx::is_sentinel(maybe_right)) {
+            idx = guarded_idx::unguard(maybe_right);
+            maybe_right = get_right(tree, idx);
+        };
+
+        let node = get_node_by_index(tree, idx);
+        let max = guarded_idx::unguard(tree.max);
+        let max_node = get_node_by_index(tree, max);
+
+        assert!(idx == max || node.key > max_node.key, EINVALID_STATE);
+        set_max(tree, guarded_idx::guard(idx));
+    }
+
+    fun set_min_if_smaller<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
         if (guarded_idx::is_sentinel(tree.min)) {
-            tree.min = guarded_idx::guard(idx);
+            set_min(tree, guarded_idx::guard(idx));
         } else {
             let min = guarded_idx::unguard(tree.min);
             let min_node = get_node_by_index(tree, min);
 
             if (key < min_node.key) {
-                tree.min = guarded_idx::guard(idx);
+                set_min(tree, guarded_idx::guard(idx));
             };
         }
     }
 
-    fun update_max<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
+    fun set_max_if_greater<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
         if (guarded_idx::is_sentinel(tree.max)) {
-            tree.max = guarded_idx::guard(idx);
+            set_max(tree, guarded_idx::guard(idx));
         } else {
             let max = guarded_idx::unguard(tree.max);
             let max_node = get_node_by_index(tree, max);
 
             if (key > max_node.key) {
-                tree.max = guarded_idx::guard(idx);
+                set_max(tree, guarded_idx::guard(idx));
             };
         }
     }
