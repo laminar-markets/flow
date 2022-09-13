@@ -111,8 +111,9 @@ module flow::splay_tree {
         assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
 
         let root = guarded_idx::unguard(maybe_root);
+        let root_node = get_node_by_index(tree, root);
 
-        if (size(tree) == 1) {
+        if (key == root_node.key && size(tree) == 1) {
             remove_node(tree, root, option::none<u64>());
             set_root(tree, guarded_idx::sentinel());
             set_min(tree, guarded_idx::sentinel());
