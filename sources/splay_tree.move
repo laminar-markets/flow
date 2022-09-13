@@ -529,12 +529,6 @@ module flow::splay_tree {
             idx = guarded_idx::unguard(maybe_left);
             maybe_left = get_left(tree, idx);
         };
-
-        let node = get_node_by_index(tree, idx);
-        let min = guarded_idx::unguard(tree.min);
-        let min_node = get_node_by_index(tree, min);
-
-        assert!(idx == min || node.key < min_node.key, EINVALID_STATE);
         set_min(tree, guarded_idx::guard(idx));
     }
 
@@ -549,12 +543,6 @@ module flow::splay_tree {
             idx = guarded_idx::unguard(maybe_right);
             maybe_right = get_right(tree, idx);
         };
-
-        let node = get_node_by_index(tree, idx);
-        let max = guarded_idx::unguard(tree.max);
-        let max_node = get_node_by_index(tree, max);
-
-        assert!(idx == max || node.key > max_node.key, EINVALID_STATE);
         set_max(tree, guarded_idx::guard(idx));
     }
 
