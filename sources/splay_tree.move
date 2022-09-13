@@ -265,6 +265,7 @@ module flow::splay_tree {
                 };
                 vector::append(&mut tree.removed_nodes, nodes_to_remove);
                 set_root(tree, guarded_idx::guard(child));
+                set_min(tree, guarded_idx::guard(idx));
                 return
             };
             check_is_done(tree, &mut iter, idx);
@@ -305,6 +306,7 @@ module flow::splay_tree {
                 };
                 vector::append(&mut tree.removed_nodes, nodes_to_remove);
                 set_root(tree, guarded_idx::guard(child));
+                set_max(tree, guarded_idx::guard(idx));
                 return
             };
             check_is_done(tree, &mut iter, idx);
