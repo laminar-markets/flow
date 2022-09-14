@@ -1164,6 +1164,56 @@ module flow::splay_tree {
     }
 
     #[test]
+    #[expected_failure(abort_code = 4)]
+    fun test_min_after_tree_emptied_out() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+
+        assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        remove(&mut tree, 1);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+
+        assert!(is_empty(&tree), ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 4)]
+    fun test_max_after_tree_emptied_out() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+
+        assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        remove(&mut tree, 1);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+
+        assert!(is_empty(&tree), ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
+    }
+
+    #[test]
     fun test_get_mut() {
         let tree = init_tree<u64>(true);
         insert(&mut tree, 2, 2);
