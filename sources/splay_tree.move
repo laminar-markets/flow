@@ -111,7 +111,16 @@ module flow::splay_tree {
         assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
 
         let root = guarded_idx::unguard(maybe_root);
-        remove_from_subtree(tree, root, option::none<u64>(), key);
+        let root_node = get_node_by_index(tree, root);
+
+        if (key == root_node.key && size(tree) == 1) {
+            remove_node(tree, root, option::none<u64>());
+            set_root(tree, guarded_idx::sentinel());
+            set_min(tree, guarded_idx::sentinel());
+            set_max(tree, guarded_idx::sentinel());
+        } else {
+            remove_from_subtree(tree, root, option::none<u64>(), key);
+        }
     }
 
     public fun insert<V: store + drop>(tree: &mut SplayTree<V>, key: u64, value: V) {
@@ -130,12 +139,12 @@ module flow::splay_tree {
             };
 
             set_root(tree, guarded_idx::guard(root_idx));
-            update_min(tree, key, root_idx);
-            update_max(tree, key, root_idx);
+            set_min_if_smaller(tree, key, root_idx);
+            set_max_if_greater(tree, key, root_idx);
         } else {
             assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
-            assert!(!guarded_idx::is_sentinel(tree.min), EINVALID_STATE);
-            assert!(!guarded_idx::is_sentinel(tree.max), EINVALID_STATE);
+            assert!(!guarded_idx::is_sentinel(get_min(tree)), EINVALID_STATE);
+            assert!(!guarded_idx::is_sentinel(get_max(tree)), EINVALID_STATE);
 
             let root = guarded_idx::unguard(maybe_root);
 
@@ -146,24 +155,26 @@ module flow::splay_tree {
                 idx = vector_utils::pop<u64>(&mut tree.removed_nodes);
             };
 
-            update_min(tree, key, idx);
-            update_max(tree, key, idx);
+            set_min_if_smaller(tree, key, idx);
+            set_max_if_greater(tree, key, idx);
 
             insert_child(tree, root, option::none<u64>(), idx, key, value);
         }
     }
 
     public fun min<V: store + drop>(tree: &SplayTree<V>): &V {
+        let maybe_min =  get_min(tree);
         assert!(!guarded_idx::is_sentinel(tree.root), ETREE_IS_EMPTY);
-        assert!(!guarded_idx::is_sentinel(tree.min), EINVALID_STATE);
-        let min_idx = guarded_idx::unguard(tree.min);
+        assert!(!guarded_idx::is_sentinel(maybe_min), EINVALID_STATE);
+        let min_idx = guarded_idx::unguard(maybe_min);
         &get_node_by_index(tree, min_idx).value
     }
 
     public fun max<V: store + drop>(tree: &SplayTree<V>): &V {
+        let maybe_max = get_max(tree);
         assert!(!guarded_idx::is_sentinel(tree.root), ETREE_IS_EMPTY);
-        assert!(!guarded_idx::is_sentinel(tree.max), EINVALID_STATE);
-        let max_idx = guarded_idx::unguard(tree.max);
+        assert!(!guarded_idx::is_sentinel(maybe_max), EINVALID_STATE);
+        let max_idx = guarded_idx::unguard(maybe_max);
         &get_node_by_index(tree, max_idx).value
     }
 
@@ -256,6 +267,7 @@ module flow::splay_tree {
                 };
                 vector::append(&mut tree.removed_nodes, nodes_to_remove);
                 set_root(tree, guarded_idx::guard(child));
+                set_min(tree, guarded_idx::guard(idx));
                 return
             };
             check_is_done(tree, &mut iter, idx);
@@ -296,6 +308,7 @@ module flow::splay_tree {
                 };
                 vector::append(&mut tree.removed_nodes, nodes_to_remove);
                 set_root(tree, guarded_idx::guard(child));
+                set_max(tree, guarded_idx::guard(idx));
                 return
             };
             check_is_done(tree, &mut iter, idx);
@@ -337,6 +350,22 @@ module flow::splay_tree {
 
     fun set_root<V: store + drop>(tree: &mut SplayTree<V>, update_to: GuardedIdx) {
         tree.root = update_to;
+    }
+
+    fun get_min<V: store + drop>(tree: &SplayTree<V>): GuardedIdx {
+        tree.min
+    }
+
+    fun set_min<V: store + drop>(tree: &mut SplayTree<V>, update_to: GuardedIdx) {
+        tree.min = update_to;
+    }
+
+    fun get_max<V: store + drop>(tree: &SplayTree<V>): GuardedIdx {
+        tree.max
+    }
+
+    fun set_max<V: store + drop>(tree: &mut SplayTree<V>, update_to: GuardedIdx) {
+        tree.max = update_to;
     }
 
     fun get_node_by_index<V: store + drop>(tree: &SplayTree<V>, idx: u64): &Node<V> {
@@ -449,6 +478,8 @@ module flow::splay_tree {
         let node = get_node_by_index(tree, idx);
         if (key == node.key) {
             remove_node(tree, idx, parent_idx);
+            update_min(tree);
+            update_max(tree);
         } else if (key < node.key && !guarded_idx::is_sentinel(node.left)) {
             remove_from_subtree(tree, guarded_idx::unguard(node.left), option::some(idx), key);
         } else if (key > node.key && !guarded_idx::is_sentinel(node.right)) {
@@ -500,28 +531,58 @@ module flow::splay_tree {
         }
     }
 
-    fun update_min<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
-        if (guarded_idx::is_sentinel(tree.min)) {
-            tree.min = guarded_idx::guard(idx);
+    fun update_min<V: store + drop>(tree: &mut SplayTree<V>) {
+        let maybe_root = get_root(tree);
+        assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
+
+        let idx = guarded_idx::unguard(maybe_root);
+        let maybe_left = get_left(tree, idx);
+
+        while (!guarded_idx::is_sentinel(maybe_left)) {
+            idx = guarded_idx::unguard(maybe_left);
+            maybe_left = get_left(tree, idx);
+        };
+        set_min(tree, guarded_idx::guard(idx));
+    }
+
+    fun update_max<V: store + drop>(tree: &mut SplayTree<V>) {
+        let maybe_root = get_root(tree);
+        assert!(!guarded_idx::is_sentinel(maybe_root), ETREE_IS_EMPTY);
+
+        let idx = guarded_idx::unguard(maybe_root);
+        let maybe_right = get_right(tree, idx);
+
+        while (!guarded_idx::is_sentinel(maybe_right)) {
+            idx = guarded_idx::unguard(maybe_right);
+            maybe_right = get_right(tree, idx);
+        };
+        set_max(tree, guarded_idx::guard(idx));
+    }
+
+    fun set_min_if_smaller<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
+        let maybe_min = get_min(tree);
+        if (guarded_idx::is_sentinel(maybe_min)) {
+            set_min(tree, guarded_idx::guard(idx));
         } else {
-            let min = guarded_idx::unguard(tree.min);
+            let min = guarded_idx::unguard(maybe_min);
             let min_node = get_node_by_index(tree, min);
 
             if (key < min_node.key) {
-                tree.min = guarded_idx::guard(idx);
+                set_min(tree, guarded_idx::guard(idx));
             };
         }
     }
 
-    fun update_max<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
-        if (guarded_idx::is_sentinel(tree.max)) {
-            tree.max = guarded_idx::guard(idx);
+    fun set_max_if_greater<V: store + drop>(tree: &mut SplayTree<V>, key: u64, idx: u64) {
+        let maybe_max = get_max(tree);
+        if (guarded_idx::is_sentinel(maybe_max)) {
+            set_max(tree, guarded_idx::guard(idx));
         } else {
-            let max = guarded_idx::unguard(tree.max);
+            let max = guarded_idx::unguard(maybe_max);
             let max_node = get_node_by_index(tree, max);
 
             if (key > max_node.key) {
-                tree.max = guarded_idx::guard(idx);
+                set_max(tree, guarded_idx::guard(idx));
             };
         }
     }
@@ -613,11 +674,13 @@ module flow::splay_tree {
     }
 
     fun check_is_done<V: store + drop>(tree: &SplayTree<V>, iter: &mut Iterator, idx: u64) {
-        assert!(!guarded_idx::is_sentinel(tree.min), EINVALID_STATE);
-        assert!(!guarded_idx::is_sentinel(tree.max), EINVALID_STATE);
+        let maybe_min = get_min(tree);
+        let maybe_max = get_max(tree);
+        assert!(!guarded_idx::is_sentinel(maybe_min), EINVALID_STATE);
+        assert!(!guarded_idx::is_sentinel(maybe_max), EINVALID_STATE);
 
         if (!iter.reverse) {
-            let max = guarded_idx::unguard(tree.max);
+            let max = guarded_idx::unguard(maybe_max);
             let max_node_key = get_node_by_index(tree, max).key;
             let node = get_node_by_index(tree, idx);
 
@@ -625,7 +688,7 @@ module flow::splay_tree {
                 iter.is_done = true;
             };
         } else {
-            let min = guarded_idx::unguard(tree.min);
+            let min = guarded_idx::unguard(maybe_min);
             let min_node_key = get_node_by_index(tree, min).key;
             let node = get_node_by_index(tree, idx);
 
@@ -946,10 +1009,14 @@ module flow::splay_tree {
         insert(&mut tree, 0, 0);
         assert!(contains(&tree, 0), ENO_MESSAGE);
         assert!(size(&tree) == 1, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 0, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         assert!(!contains(&tree, 0), ENO_MESSAGE);
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
     }
 
     #[test]
@@ -961,12 +1028,16 @@ module flow::splay_tree {
         assert!(contains(&tree, 0), ENO_MESSAGE);
         assert!(contains(&tree, 1), ENO_MESSAGE);
         assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
         assert!(!contains(&tree, 0), ENO_MESSAGE);
         assert!(!contains(&tree, 1), ENO_MESSAGE);
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
     }
 
     #[test]
@@ -986,7 +1057,10 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 6, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
@@ -1001,7 +1075,10 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
     }
 
     #[test]
@@ -1021,7 +1098,10 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 6, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
@@ -1036,7 +1116,10 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
     }
 
     #[test]
@@ -1056,7 +1139,10 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 6, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
@@ -1071,7 +1157,60 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
         assert!(size(&tree) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_min(&tree)), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(get_max(&tree)), ENO_MESSAGE);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 4)]
+    fun test_min_after_tree_emptied_out() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+
+        assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        remove(&mut tree, 1);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+
+        assert!(is_empty(&tree), ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 4)]
+    fun test_max_after_tree_emptied_out() {
+        let tree = init_tree<u64>(true);
+
+        insert(&mut tree, 0, 0);
+        insert(&mut tree, 1, 1);
+
+        assert!(contains(&tree, 0), ENO_MESSAGE);
+        assert!(contains(&tree, 1), ENO_MESSAGE);
+
+        assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
+
+        remove(&mut tree, 0);
+        remove(&mut tree, 1);
+
+        assert!(!contains(&tree, 0), ENO_MESSAGE);
+        assert!(!contains(&tree, 1), ENO_MESSAGE);
+
+        assert!(is_empty(&tree), ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
     }
 
     #[test]
@@ -1412,19 +1551,29 @@ module flow::splay_tree {
 
         insert(&mut tree, 0, 0);
         assert!(size(&tree) == 1, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 0, ENO_MESSAGE);
 
         insert(&mut tree, 1, 1);
         assert!(size(&tree) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         assert!(size(&tree) == 1, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
 
+        assert!(*min(&tree) == 1, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
+
         insert(&mut tree, 0, 0);
         assert!(size(&tree) == 2, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 2, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 0, ENO_MESSAGE);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 1, ENO_MESSAGE);
     }
 
     #[test]
@@ -1435,21 +1584,29 @@ module flow::splay_tree {
         insert(&mut tree, 2, 2);
         insert(&mut tree, 1, 1);
         assert!(size(&tree) == 3, ENO_MESSAGE);
+        assert!(*min(&tree) == 1, ENO_MESSAGE);
+        assert!(*max(&tree) == 3, ENO_MESSAGE);
 
         insert(&mut tree, 4, 4);
         insert(&mut tree, 0, 0);
         assert!(size(&tree) == 5, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 4, ENO_MESSAGE);
 
         remove(&mut tree, 0);
         remove(&mut tree, 1);
         assert!(size(&tree) == 3, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 2, ENO_MESSAGE);
+        assert!(*min(&tree) == 2, ENO_MESSAGE);
+        assert!(*max(&tree) == 4, ENO_MESSAGE);
 
         insert(&mut tree, 0, 0);
         assert!(size(&tree) == 4, ENO_MESSAGE);
         assert!(vector::length(&tree.nodes) == 5, ENO_MESSAGE);
         assert!(vector::length(&tree.removed_nodes) == 1, ENO_MESSAGE);
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 4, ENO_MESSAGE);
     }
 
     #[test]
@@ -1471,6 +1628,9 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 3, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
     }
 
     #[test]
@@ -1492,6 +1652,9 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 3, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
     }
 
     #[test]
@@ -1513,6 +1676,9 @@ module flow::splay_tree {
         assert!(contains(&tree, 3), ENO_MESSAGE);
         assert!(contains(&tree, 4), ENO_MESSAGE);
         assert!(contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 3, ENO_MESSAGE);
+        assert!(*max(&tree) == 5, ENO_MESSAGE);
     }
 
     #[test]
@@ -1534,6 +1700,9 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 2, ENO_MESSAGE);
     }
 
     #[test]
@@ -1555,6 +1724,9 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 2, ENO_MESSAGE);
     }
 
     #[test]
@@ -1576,5 +1748,8 @@ module flow::splay_tree {
         assert!(!contains(&tree, 3), ENO_MESSAGE);
         assert!(!contains(&tree, 4), ENO_MESSAGE);
         assert!(!contains(&tree, 5), ENO_MESSAGE);
+
+        assert!(*min(&tree) == 0, ENO_MESSAGE);
+        assert!(*max(&tree) == 2, ENO_MESSAGE);
     }
 }
