@@ -112,7 +112,6 @@ module flow::queue {
 
     public fun dequeue<V: store + drop>(queue: &mut Queue<V>): V {
         assert!(!guarded_idx::is_sentinel(queue.head), EQUEUE_EMPTY);
-        assert!(!guarded_idx::is_sentinel(queue.tail), EQUEUE_EMPTY);
         let head = guarded_idx::unguard(queue.head);
         vector::push_back(&mut queue.free_indices, head);
         let head_node = vector::borrow_mut(&mut queue.nodes, head);
@@ -124,6 +123,12 @@ module flow::queue {
             clear(queue);
         };
         result
+    }
+
+    public fun peek<V: store + drop>(queue: &Queue<V>): &V {
+        let head = guarded_idx::unguard(queue.head);
+        let head_node = vector::borrow(&queue.nodes, head);
+        option::borrow(&head_node.value)
     }
 
     // *************************************************************************
@@ -272,5 +277,14 @@ module flow::queue {
         assert!(size(&queue) == 0, ENO_MESSAGE);
         assert!(vector::length(&queue.free_indices) == 0, ENO_MESSAGE);
         assert!(vector::length(&queue.nodes) == 0, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_peek() {
+        let queue = new<u64>();
+        enqueue(&mut queue, 1);
+        enqueue(&mut queue, 2);
+        let top = peek(&queue);
+        assert!(*top == 1, ENO_MESSAGE);
     }
 }
