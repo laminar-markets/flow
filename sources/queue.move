@@ -22,6 +22,8 @@ module flow::queue {
     const EQUEUE_MALFORMED: u64 = 2;
     // Queue is empty
     const EQUEUE_EMPTY: u64 = 3;
+    // Iterator is done
+    const EITERATOR_DONE: u64 = 4;
 
     // *************************************************************************
     // * Structs                                                               *
@@ -37,6 +39,11 @@ module flow::queue {
         tail: GuardedIdx,
         nodes: vector<Node<V>>,
         free_indices: vector<u64>
+    }
+
+    struct Iterator has drop {
+        current: GuardedIdx,
+        is_done: bool,
     }
 
     // *************************************************************************
@@ -69,6 +76,26 @@ module flow::queue {
         queue.tail = guarded_idx::sentinel();
         queue.nodes = vector::empty<Node<V>>();
         queue.free_indices = vector::empty<u64>();
+    }
+
+    public fun init_iterator<V: store + drop>(queue: &Queue<V>): Iterator {
+        Iterator {
+            current: queue.head,
+            is_done: false,
+        }
+    }
+
+    public fun has_next(iter: &Iterator): bool {
+        !iter.is_done
+    }
+
+    public fun next<V: store + drop>(queue: &Queue<V>, iter: &mut Iterator): &V {
+        assert!(has_next(iter), EITERATOR_DONE);
+        let current_index = guarded_idx::unguard(iter.current);
+        let current_node = vector::borrow(&queue.nodes, current_index);
+        iter.current = current_node.next;
+        iter.is_done = guarded_idx::is_sentinel(iter.current);
+        option::borrow(&current_node.value)
     }
 
     fun create_node<V: store + drop>(value: V): Node<V> {
@@ -286,5 +313,19 @@ module flow::queue {
         enqueue(&mut queue, 2);
         let top = peek(&queue);
         assert!(*top == 1, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_iterator() {
+        let queue = new<u64>();
+        enqueue(&mut queue, 1);
+        enqueue(&mut queue, 2);
+        let iter = init_iterator(&queue);
+        assert!(has_next(&iter), ENO_MESSAGE);
+        let n = next(&queue, &mut iter);
+        assert!(*n == 1, ENO_MESSAGE);
+        let n = next(&queue, &mut iter);
+        assert!(*n == 2, ENO_MESSAGE);
+        assert!(!has_next(&iter), ENO_MESSAGE);
     }
 }
