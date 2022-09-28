@@ -42,8 +42,7 @@ module flow::queue {
     }
 
     struct Iterator has drop {
-        current: GuardedIdx,
-        is_done: bool,
+        current: GuardedIdx
     }
 
     // *************************************************************************
@@ -78,24 +77,54 @@ module flow::queue {
         queue.free_indices = vector::empty<u64>();
     }
 
-    public fun init_iterator<V: store + drop>(queue: &Queue<V>): Iterator {
+    public fun init_iterator<V: store + drop>(): Iterator {
         Iterator {
-            current: queue.head,
-            is_done: false,
+            current: guarded_idx::sentinel()
         }
     }
 
-    public fun has_next(iter: &Iterator): bool {
-        !iter.is_done
+    public fun has_next<V: store + drop>(queue: &Queue<V>, iter: &Iterator): bool {
+        if (!is_empty(queue) && guarded_idx::is_sentinel(iter.current)) {
+            true
+        } else if (!guarded_idx::is_sentinel(iter.current)) {
+            let current_node = vector::borrow(&queue.nodes, guarded_idx::unguard(iter.current));
+            !guarded_idx::is_sentinel(current_node.next)
+        } else {
+            false
+        }
     }
 
-    public fun next<V: store + drop>(queue: &Queue<V>, iter: &mut Iterator): &V {
-        assert!(has_next(iter), EITERATOR_DONE);
-        let current_index = guarded_idx::unguard(iter.current);
-        let current_node = vector::borrow(&queue.nodes, current_index);
-        iter.current = current_node.next;
-        iter.is_done = guarded_idx::is_sentinel(iter.current);
-        option::borrow(&current_node.value)
+    public fun next_index<V: store + drop>(queue: &Queue<V>, iter: &mut Iterator): u64 {
+        assert!(!is_empty(queue), EQUEUE_EMPTY);
+
+        if (!is_empty(queue) && guarded_idx::is_sentinel(iter.current)) {
+            iter.current = queue.head;
+        } else {
+            assert!(!guarded_idx::is_sentinel(iter.current), EITERATOR_DONE);
+            let current_node = vector::borrow(&queue.nodes, guarded_idx::unguard(iter.current));
+            iter.current = current_node.next;
+        };
+
+        guarded_idx::unguard(iter.current)
+    }
+
+    public fun get<V: store + drop>(queue: &Queue<V>, index: u64): &V {
+        let n = vector::borrow(&queue.nodes, index);
+        option::borrow(&n.value)
+    }
+
+    public fun get_mut<V: store + drop>(queue: &mut Queue<V>, index: u64): &mut V {
+        let n = vector::borrow_mut(&mut queue.nodes, index);
+        option::borrow_mut(&mut n.value)
+    }
+
+    public fun peek_iter_index<V: store + drop>(iter: &Iterator): Option<u64> {
+        if (guarded_idx::is_sentinel(iter.current)) {
+            option::none()
+        } else {
+            let current_index = guarded_idx::unguard(iter.current);
+            option::some(current_index)
+        }
     }
 
     fun create_node<V: store + drop>(value: V): Node<V> {
@@ -152,10 +181,34 @@ module flow::queue {
         result
     }
 
+    public fun remove<V: store + drop>(queue: &mut Queue<V>, index_to_remove: u64, prev_index: Option<u64>) {
+        vector::push_back(&mut queue.free_indices, index_to_remove);
+        if (option::is_none(&prev_index)) {
+            let node = vector::borrow(&mut queue.nodes, index_to_remove);
+            queue.head = node.next;
+        } else {
+            let next = {
+                let node = vector::borrow(&mut queue.nodes, index_to_remove);
+                node.next
+            };
+            let prev_node = vector::borrow_mut(&mut queue.nodes, *option::borrow(&prev_index));
+            prev_node.next = next;
+        };
+
+        let node = vector::borrow_mut(&mut queue.nodes, index_to_remove);
+        node.next = guarded_idx::sentinel();
+    }
+
     public fun peek<V: store + drop>(queue: &Queue<V>): &V {
         let head = guarded_idx::unguard(queue.head);
         let head_node = vector::borrow(&queue.nodes, head);
         option::borrow(&head_node.value)
+    }
+
+    public fun peek_mut<V: store + drop>(queue: &mut Queue<V>): &mut V {
+        let head = guarded_idx::unguard(queue.head);
+        let head_node = vector::borrow_mut(&mut queue.nodes, head);
+        option::borrow_mut(&mut head_node.value)
     }
 
     // *************************************************************************
@@ -320,12 +373,14 @@ module flow::queue {
         let queue = new<u64>();
         enqueue(&mut queue, 1);
         enqueue(&mut queue, 2);
-        let iter = init_iterator(&queue);
-        assert!(has_next(&iter), ENO_MESSAGE);
-        let n = next(&queue, &mut iter);
+        let iter = init_iterator<u64>();
+        assert!(has_next(&queue, &iter), ENO_MESSAGE);
+        let i = next_index(&queue, &mut iter);
+        let n = get(&queue, i);
         assert!(*n == 1, ENO_MESSAGE);
-        let n = next(&queue, &mut iter);
+        let i = next_index(&queue, &mut iter);
+        let n = get(&queue, i);
         assert!(*n == 2, ENO_MESSAGE);
-        assert!(!has_next(&iter), ENO_MESSAGE);
+        assert!(!has_next(&queue, &iter), ENO_MESSAGE);
     }
 }
