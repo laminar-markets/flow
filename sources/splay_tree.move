@@ -134,7 +134,7 @@ module flow::splay_tree {
                 root_idx = 0;
                 vector::push_back(&mut tree.nodes, node);
             } else {
-                root_idx = vector_utils::pop<u64>(&mut tree.removed_nodes);
+                root_idx = vector::pop_back<u64>(&mut tree.removed_nodes);
                 *vector::borrow_mut(&mut tree.nodes, root_idx) = node;
             };
 
@@ -152,7 +152,7 @@ module flow::splay_tree {
             if (vector::is_empty(&tree.removed_nodes)) {
                 idx = vector::length(&tree.nodes);
             } else {
-                idx = vector_utils::pop<u64>(&mut tree.removed_nodes);
+                idx = vector::pop_back<u64>(&mut tree.removed_nodes);
             };
 
             set_min_if_smaller(tree, key, idx);

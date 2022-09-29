@@ -2,6 +2,7 @@ module flow::guarded_idx {
     use std::option::{Self, Option};
 
     friend flow::splay_tree;
+    friend flow::queue;
 
     const ENO_MESSAGE: u64 = 0;
 
