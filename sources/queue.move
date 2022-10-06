@@ -24,6 +24,8 @@ module flow::queue {
     const EQUEUE_EMPTY: u64 = 3;
     // Iterator is done
     const EITERATOR_DONE: u64 = 4;
+    // Invalid removal
+    const EINVALID_REMOVAL: u64 = 5;
 
     // *************************************************************************
     // * Structs                                                               *
@@ -182,21 +184,28 @@ module flow::queue {
     }
 
     public fun remove<V: store + drop>(queue: &mut Queue<V>, index_to_remove: u64, prev_index: Option<u64>) {
-        vector::push_back(&mut queue.free_indices, index_to_remove);
-        if (option::is_none(&prev_index)) {
-            let node = vector::borrow(&mut queue.nodes, index_to_remove);
-            queue.head = node.next;
+        if (index_to_remove == guarded_idx::unguard(queue.head)) {
+            vector::push_back(&mut queue.free_indices, index_to_remove);
+            let removed_node = vector::borrow_mut(&mut queue.nodes, index_to_remove);
+            queue.head = removed_node.next;
+            removed_node.next = guarded_idx::sentinel();
+        } else if (index_to_remove == guarded_idx::unguard(queue.tail)) {
+            vector::pop_back(&mut queue.nodes);
+            queue.tail = guarded_idx::guard(*option::borrow(&prev_index));
+            let prev_node = vector::borrow_mut(&mut queue.nodes, *option::borrow(&prev_index));
+            prev_node.next = guarded_idx::sentinel();
         } else {
-            let next = {
-                let node = vector::borrow(&mut queue.nodes, index_to_remove);
-                node.next
+            vector::push_back(&mut queue.free_indices, index_to_remove);
+            let removed_node_next = {
+                let removed_node = vector::borrow(&mut queue.nodes, index_to_remove);
+                removed_node.next
             };
             let prev_node = vector::borrow_mut(&mut queue.nodes, *option::borrow(&prev_index));
-            prev_node.next = next;
+            assert!(guarded_idx::unguard(prev_node.next) == index_to_remove, EINVALID_REMOVAL);
+            prev_node.next = removed_node_next;
+            let removed_node = vector::borrow_mut(&mut queue.nodes, index_to_remove);
+            removed_node.next = guarded_idx::sentinel();
         };
-
-        let node = vector::borrow_mut(&mut queue.nodes, index_to_remove);
-        node.next = guarded_idx::sentinel();
     }
 
     public fun peek<V: store + drop>(queue: &Queue<V>): &V {
@@ -398,12 +407,12 @@ module flow::queue {
         remove(&mut queue, 3, option::some(1));
         remove(&mut queue, 4, option::some(1));
 
-        print_queue(&queue); // 10 -> 20 -> 60
+        // print_queue(&queue); // 10 -> 20 -> 60
         assert!(size(&queue) == 3, ENO_MESSAGE);
 
         enqueue(&mut queue, 70);
         assert!(size(&queue) == 4, ENO_MESSAGE);
-        print_queue(&queue); // Error : (Expected 10, 20, 60, 70  ; Occured 10, 20, 60, 50)
+        // print_queue(&queue); // Error : (Expected 10, 20, 60, 70  ; Occured 10, 20, 60, 50)
 
         let one = dequeue(&mut queue);
         assert!(one == 10, ENO_MESSAGE);
@@ -413,7 +422,6 @@ module flow::queue {
         assert!(three == 60, ENO_MESSAGE);
         let four = dequeue(&mut queue);
         assert!(four == 70, ENO_MESSAGE);
-        debug::print(&queue.nodes);
         assert!(size(&queue) == 0, ENO_MESSAGE);
 
         assert!(vector::length(&queue.nodes) == 0, ENO_MESSAGE);
@@ -422,4 +430,23 @@ module flow::queue {
         assert!(guarded_idx::is_sentinel(queue.tail), ENO_MESSAGE);
     }
 
+    #[test]
+    fun test_remove_tail() {
+        let queue = new<u64>();
+        enqueue(&mut queue, 10);
+        enqueue(&mut queue, 20);
+        enqueue(&mut queue, 30);
+        enqueue(&mut queue, 40);
+        enqueue(&mut queue, 50);
+        enqueue(&mut queue, 60);
+
+        // print_queue(&queue); // 10 -> 20 -> 30 -> 40 -> 50 -> 60
+        assert!(guarded_idx::unguard(queue.head) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::unguard(queue.tail) == 5, ENO_MESSAGE);
+
+        remove(&mut queue, 5, option::some(4));
+        // print_queue(&queue); // 10 -> 20 -> 30 -> 40 -> 50
+        assert!(guarded_idx::unguard(queue.head) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::unguard(queue.tail) == 4, ENO_MESSAGE);
+    }
 }
