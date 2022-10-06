@@ -147,10 +147,12 @@ module flow::queue {
         } else {
             assert!(!guarded_idx::is_sentinel(queue.head), EQUEUE_MALFORMED);
             assert!(!guarded_idx::is_sentinel(queue.tail), EQUEUE_MALFORMED);
-            let index = if (vector::length(&queue.free_indices) > 0) {
-                vector::pop_back(&mut queue.free_indices)
-            } else {
+
+            let queue_is_full = vector::length(&queue.free_indices) == 0;
+            let index = if (queue_is_full) {
                 vector::length(&queue.nodes)
+            } else {
+                vector::pop_back(&mut queue.free_indices)
             };
 
             let tail = guarded_idx::unguard(queue.tail);
@@ -158,7 +160,7 @@ module flow::queue {
             tail_node.next = guarded_idx::guard(index);
             queue.tail = tail_node.next;
 
-            if (index == vector::length(&queue.nodes)) {
+            if (queue_is_full) {
                 let next_node = create_node(value);
                 vector::push_back(&mut queue.nodes, next_node);
             } else {
@@ -184,6 +186,7 @@ module flow::queue {
     }
 
     public fun remove<V: store + drop>(queue: &mut Queue<V>, index_to_remove: u64, prev_index: Option<u64>) {
+        assert!(size(queue) > 0, EINVALID_REMOVAL);
         if (index_to_remove == guarded_idx::unguard(queue.head)) {
             vector::push_back(&mut queue.free_indices, index_to_remove);
             let removed_node = vector::borrow_mut(&mut queue.nodes, index_to_remove);
