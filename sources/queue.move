@@ -148,7 +148,7 @@ module flow::queue {
             let index = if (vector::length(&queue.free_indices) > 0) {
                 vector::pop_back(&mut queue.free_indices)
             } else {
-                size(queue)
+                vector::length(&queue.nodes)
             };
 
             let tail = guarded_idx::unguard(queue.tail);
@@ -156,7 +156,7 @@ module flow::queue {
             tail_node.next = guarded_idx::guard(index);
             queue.tail = tail_node.next;
 
-            if (index == size(queue)) {
+            if (index == vector::length(&queue.nodes)) {
                 let next_node = create_node(value);
                 vector::push_back(&mut queue.nodes, next_node);
             } else {
@@ -383,4 +383,43 @@ module flow::queue {
         assert!(*n == 2, ENO_MESSAGE);
         assert!(!has_next(&queue, &iter), ENO_MESSAGE);
     }
+
+    #[test]
+    fun test_multiple_inserts_removals() {
+        let queue = new<u64>();
+        enqueue(&mut queue, 10);
+        enqueue(&mut queue, 20);
+        enqueue(&mut queue, 30);
+        enqueue(&mut queue, 40);
+        enqueue(&mut queue, 50);
+        enqueue(&mut queue, 60);
+
+        remove(&mut queue, 2, option::some(1));
+        remove(&mut queue, 3, option::some(1));
+        remove(&mut queue, 4, option::some(1));
+
+        print_queue(&queue); // 10 -> 20 -> 60
+        assert!(size(&queue) == 3, ENO_MESSAGE);
+
+        enqueue(&mut queue, 70);
+        assert!(size(&queue) == 4, ENO_MESSAGE);
+        print_queue(&queue); // Error : (Expected 10, 20, 60, 70  ; Occured 10, 20, 60, 50)
+
+        let one = dequeue(&mut queue);
+        assert!(one == 10, ENO_MESSAGE);
+        let two = dequeue(&mut queue);
+        assert!(two == 20, ENO_MESSAGE);
+        let three = dequeue(&mut queue);
+        assert!(three == 60, ENO_MESSAGE);
+        let four = dequeue(&mut queue);
+        assert!(four == 70, ENO_MESSAGE);
+        debug::print(&queue.nodes);
+        assert!(size(&queue) == 0, ENO_MESSAGE);
+
+        assert!(vector::length(&queue.nodes) == 0, ENO_MESSAGE);
+        assert!(vector::length(&queue.free_indices) == 0, ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(queue.head), ENO_MESSAGE);
+        assert!(guarded_idx::is_sentinel(queue.tail), ENO_MESSAGE);
+    }
+
 }
