@@ -187,18 +187,16 @@ module flow::queue {
 
     public fun remove<V: store + drop>(queue: &mut Queue<V>, index_to_remove: u64, prev_index: Option<u64>) {
         assert!(size(queue) > 0, EINVALID_REMOVAL);
+        vector::push_back(&mut queue.free_indices, index_to_remove);
         if (index_to_remove == guarded_idx::unguard(queue.head)) {
-            vector::push_back(&mut queue.free_indices, index_to_remove);
             let removed_node = vector::borrow_mut(&mut queue.nodes, index_to_remove);
             queue.head = removed_node.next;
             removed_node.next = guarded_idx::sentinel();
         } else if (index_to_remove == guarded_idx::unguard(queue.tail)) {
-            vector::pop_back(&mut queue.nodes);
             queue.tail = guarded_idx::guard(*option::borrow(&prev_index));
             let prev_node = vector::borrow_mut(&mut queue.nodes, *option::borrow(&prev_index));
             prev_node.next = guarded_idx::sentinel();
         } else {
-            vector::push_back(&mut queue.free_indices, index_to_remove);
             let removed_node_next = {
                 let removed_node = vector::borrow(&mut queue.nodes, index_to_remove);
                 removed_node.next
