@@ -453,11 +453,12 @@ module flow::splay_tree {
                 move_parent_pointer(tree, idx, parent_idx, guarded_idx::guard(right_leftmost));
 
                 let right_leftmost_node = get_mut_node_by_index(tree, right_leftmost);
+                let old_right = right_leftmost_node.right;
                 right_leftmost_node.left = maybe_left;
                 right_leftmost_node.right = maybe_right;
 
                 let right_leftmost_parent_node = get_mut_node_by_index(tree, right_leftmost_parent);
-                right_leftmost_parent_node.left = guarded_idx::sentinel();
+                right_leftmost_parent_node.left = old_right;
             } else {
                 move_parent_pointer(tree, idx, parent_idx, guarded_idx::guard(right));
 
@@ -1751,5 +1752,87 @@ module flow::splay_tree {
 
         assert!(*min(&tree) == 0, ENO_MESSAGE);
         assert!(*max(&tree) == 2, ENO_MESSAGE);
+    }
+
+    #[test_only]
+    use aptos_std::debug;
+
+    #[test]
+    fun test_asdf() {
+        let tree = init_tree<u64>(true);
+
+        // let node10 = &mut ;
+        vector::push_back(&mut tree.nodes, init_node<u64>(10, 11));
+        vector::push_back(&mut tree.nodes, init_node<u64>(20, 22));
+        vector::push_back(&mut tree.nodes, init_node<u64>(30, 33));
+        vector::push_back(&mut tree.nodes, init_node<u64>(35, 44));
+        vector::push_back(&mut tree.nodes, init_node<u64>(40, 55));
+        vector::push_back(&mut tree.nodes, init_node<u64>(50, 55));
+
+        tree.min  = guarded_idx::guard(0);
+        tree.max  = guarded_idx::guard(4);
+        tree.root = guarded_idx::guard(1);
+
+        let node20 = vector::borrow_mut(&mut tree.nodes, 1);
+        node20.left  = guarded_idx::guard(0);
+        node20.right = guarded_idx::guard(4);
+
+        let node30 = vector::borrow_mut(&mut tree.nodes, 2);
+        node30.right = guarded_idx::guard(3);
+
+        let node40 = vector::borrow_mut(&mut tree.nodes, 4);
+        node40.left  = guarded_idx::guard(2);
+        node40.right = guarded_idx::guard(5);
+
+
+        let node20 = print_node(&tree, tree.root);
+        assert!(node20.key == 20, ENO_MESSAGE);
+        let node10 = print_node(&tree, node20.left);
+        assert!(node10.key == 10, ENO_MESSAGE);
+        let node40 = print_node(&tree, node20.right);
+        assert!(node40.key == 40, ENO_MESSAGE);
+        let node30 = print_node(&tree, node40.left);
+        assert!(node30.key == 30, ENO_MESSAGE);
+        let node35 = print_node(&tree, node30.right);
+        assert!(node35.key == 35, ENO_MESSAGE);
+        let node50 = print_node(&tree, node40.right);
+        assert!(node50.key == 50, ENO_MESSAGE);
+        debug::print(&1);
+
+        // Constructed tree
+        //           20
+        //         /    \
+        //       10      40
+        //              /  \
+        //            30   50
+        //              \
+        //               35
+
+
+        remove(&mut tree, 20);
+        let node30 = print_node(&tree, tree.root);
+        assert!(node30.key == 30, ENO_MESSAGE);
+        let node10 = print_node(&tree, node30.left);
+        assert!(node10.key == 10, ENO_MESSAGE);
+        let node40 = print_node(&tree, node30.right);
+        assert!(node40.key == 40, ENO_MESSAGE);
+        let node35 = print_node(&tree, node40.left);
+        assert!(node35.key == 35, ENO_MESSAGE);
+        let node50 = print_node(&tree, node40.right);
+        assert!(node50.key == 50, ENO_MESSAGE);
+        // Output Tree (After removal of 20)
+        //         30
+        //       /    \
+        //      10    40
+        //           /  \
+        //          35  50
+    }
+
+    #[test_only]
+    fun print_node<V: store + drop>(tree: &SplayTree<V>, idx: GuardedIdx) : &Node<V>{
+        let index = guarded_idx::unguard(idx);
+        let node = get_node_by_index(tree, index);
+        debug::print(node);
+        node
     }
 }
