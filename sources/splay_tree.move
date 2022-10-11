@@ -772,7 +772,7 @@ module flow::splay_tree {
 
                 if (!guarded_idx::is_sentinel(maybe_parent_right) && guarded_idx::unguard(maybe_parent_right) == current) {
                     return parent
-                } else if (!guarded_idx::is_sentinel(maybe_parent_left) && guarded_idx::unguard(maybe_parent_right) == current) {
+                } else if (!guarded_idx::is_sentinel(maybe_parent_left) && guarded_idx::unguard(maybe_parent_left) == current) {
                     current = vector::pop_back(&mut iter.stack);
                     parent = vector_utils::top(&iter.stack);
                 } else {
