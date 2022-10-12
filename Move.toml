@@ -3,8 +3,8 @@ name = "Flow"
 version = "1.0.0"
 
 [dependencies]
-AptosStdlib = { git = "https://github.com/laminar-markets/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "laminar" }
-MoveStdlib = { git = "https://github.com/laminar-markets/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "laminar" }
+AptosStdlib = { git = "https://github.com/laminar-markets/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "main" }
+MoveStdlib = { git = "https://github.com/laminar-markets/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "main" }
 
 [addresses]
 std = "0x1"
