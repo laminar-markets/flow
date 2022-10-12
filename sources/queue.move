@@ -6,12 +6,6 @@ module flow::queue {
     use aptos_std::debug;
 
     // *************************************************************************
-    // * Constants
-    // *************************************************************************
-
-    const U64_MAX: u64 = 0xffffffffffffffff;
-
-    // *************************************************************************
     // * Error codes                                                           *
     // *************************************************************************
 
@@ -55,10 +49,6 @@ module flow::queue {
         size(queue) == 0
     }
 
-    public fun is_full<V: store + drop>(queue: &Queue<V>): bool {
-        size(queue) == U64_MAX
-    }
-
     public fun size<V: store + drop>(queue: &Queue<V>): u64 {
         vector::length(&queue.nodes) - vector::length(&queue.free_indices)
     }
@@ -99,10 +89,9 @@ module flow::queue {
     public fun next_index<V: store + drop>(queue: &Queue<V>, iter: &mut Iterator): u64 {
         assert!(!is_empty(queue), EQUEUE_EMPTY);
 
-        if (!is_empty(queue) && guarded_idx::is_sentinel(iter.current)) {
+        if (guarded_idx::is_sentinel(iter.current)) {
             iter.current = queue.head;
         } else {
-            assert!(!guarded_idx::is_sentinel(iter.current), EITERATOR_DONE);
             let current_node = vector::borrow(&queue.nodes, guarded_idx::unguard(iter.current));
             iter.current = current_node.next;
         };
@@ -137,7 +126,6 @@ module flow::queue {
     }
 
     public fun enqueue<V: store + drop>(queue: &mut Queue<V>, value: V) {
-        assert!(!is_full(queue), EQUEUE_FULL);
         if (is_empty(queue)) {
             assert!(guarded_idx::is_sentinel(queue.head), EQUEUE_MALFORMED);
             assert!(guarded_idx::is_sentinel(queue.tail), EQUEUE_MALFORMED);
@@ -186,15 +174,17 @@ module flow::queue {
     }
 
     public fun remove<V: store + drop>(queue: &mut Queue<V>, index_to_remove: u64, prev_index: Option<u64>) {
+        if (index_to_remove == guarded_idx::unguard(queue.head)) {
+            dequeue(queue);
+            return
+        };
+
         assert!(size(queue) > 0, EINVALID_REMOVAL);
         vector::push_back(&mut queue.free_indices, index_to_remove);
-        if (index_to_remove == guarded_idx::unguard(queue.head)) {
-            let removed_node = vector::borrow_mut(&mut queue.nodes, index_to_remove);
-            queue.head = removed_node.next;
-            removed_node.next = guarded_idx::sentinel();
-        } else if (index_to_remove == guarded_idx::unguard(queue.tail)) {
+        if (index_to_remove == guarded_idx::unguard(queue.tail)) {
             queue.tail = guarded_idx::guard(*option::borrow(&prev_index));
             let prev_node = vector::borrow_mut(&mut queue.nodes, *option::borrow(&prev_index));
+            assert!(guarded_idx::unguard(prev_node.next) == index_to_remove, EINVALID_REMOVAL);
             prev_node.next = guarded_idx::sentinel();
         } else {
             let removed_node_next = {
@@ -449,5 +439,13 @@ module flow::queue {
         // print_queue(&queue); // 10 -> 20 -> 30 -> 40 -> 50
         assert!(guarded_idx::unguard(queue.head) == 0, ENO_MESSAGE);
         assert!(guarded_idx::unguard(queue.tail) == 4, ENO_MESSAGE);
+    }
+
+    #[test]
+    fun test_corrupt_queue_with_remove() {
+        let queue = new<u64>();
+        enqueue(&mut queue, 10);
+        remove(&mut queue, 0, option::none());
+        enqueue(&mut queue, 1);
     }
 }
