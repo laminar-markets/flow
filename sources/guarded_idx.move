@@ -61,7 +61,7 @@ module flow::guarded_idx {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = EINVALID_ARGUMENT)]
     fun test_guard_max_u64_fails() {
         let value = SENTINEL_VALUE;
         guard(value);
@@ -74,7 +74,7 @@ module flow::guarded_idx {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = EINVALID_ARGUMENT)]
     fun test_unguard_sentinel_fails() {
         unguard(sentinel());
     }
