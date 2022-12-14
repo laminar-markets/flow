@@ -2,6 +2,7 @@ module flow::guarded_idx {
     use std::option::{Self, Option};
 
     friend flow::splay_tree;
+    friend flow::queue;
 
     const ENO_MESSAGE: u64 = 0;
 
@@ -60,7 +61,7 @@ module flow::guarded_idx {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = EINVALID_ARGUMENT)]
     fun test_guard_max_u64_fails() {
         let value = SENTINEL_VALUE;
         guard(value);
@@ -73,7 +74,7 @@ module flow::guarded_idx {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = EINVALID_ARGUMENT)]
     fun test_unguard_sentinel_fails() {
         unguard(sentinel());
     }

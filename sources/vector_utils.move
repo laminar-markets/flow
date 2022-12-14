@@ -13,11 +13,4 @@ module flow::vector_utils {
         };
         *vector::borrow(v, len - 1)
     }
-
-    public(friend) fun pop<T: copy + drop>(v: &mut vector<T>): T {
-        assert!(!vector::is_empty(v), EVECTOR_EMPTY);
-        let first = *vector::borrow(v, 0);
-        vector::remove(v, 0);
-        first
-    }
 }
