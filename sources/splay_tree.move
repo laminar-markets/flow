@@ -925,14 +925,14 @@ module flow::splay_tree {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = ETREE_IS_EMPTY)]
     fun test_min_empty() {
         let tree = init_tree<u64>(true);
         let _min = min(&tree);
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = ETREE_IS_EMPTY)]
     fun test_max_empty() {
         let tree = init_tree<u64>(true);
         let _max = max(&tree);
@@ -1185,7 +1185,7 @@ module flow::splay_tree {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = ETREE_IS_EMPTY)]
     fun test_min_after_tree_emptied_out() {
         let tree = init_tree<u64>(true);
 
@@ -1210,7 +1210,7 @@ module flow::splay_tree {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = ETREE_IS_EMPTY)]
     fun test_max_after_tree_emptied_out() {
         let tree = init_tree<u64>(true);
 
@@ -1449,7 +1449,7 @@ module flow::splay_tree {
     }
 
     #[test]
-    #[expected_failure(abort_code = 6)]
+    #[expected_failure(abort_code = EITER_ALREADY_DONE)]
     fun test_iterator_next_after_done() {
         let tree = init_tree<u64>(true);
 
@@ -1469,7 +1469,7 @@ module flow::splay_tree {
     }
 
     #[test]
-    #[expected_failure(abort_code = 6)]
+    #[expected_failure(abort_code = EITER_ALREADY_DONE)]
     fun test_reverse_iterator_next_after_done() {
         let tree = init_tree<u64>(true);
 
